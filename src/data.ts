@@ -50,6 +50,8 @@ export interface TradeSide {
   // Players whose points count for this side -> [date acquired, date they left or null].
   // Includes players drafted with received picks (from draft day), if this team made the pick.
   tenure: Record<string, [string, string | null]>
+  sentPlayers: string[] // what this team gave up (players)
+  sentPicks: string[] // what this team gave up (pick keys)
 }
 
 export interface Trade {

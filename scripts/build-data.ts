@@ -248,6 +248,9 @@ for (const season of seasonList) {
       players: Object.entries(tx.adds ?? {}).filter(([, to]) => to === rid).map(([pid]) => pid),
       picks: [] as string[],
       faab: 0,
+      // What this team gave up (for trade trees): players it sent, and picks it sent.
+      sentPlayers: Object.entries(tx.drops ?? {}).filter(([, from]) => from === rid).map(([pid]) => pid),
+      sentPicks: [] as string[],
     }))
     const side = (rid: number) => sides.find((s) => s.rosterId === rid)!
 
@@ -271,6 +274,7 @@ for (const season of seasonList) {
         if (playerId) referencedPlayers.add(playerId)
       }
       side(p.owner_id)?.picks.push(key)
+      if (p.previous_owner_id != null) sides.find((s) => s.rosterId === p.previous_owner_id)?.sentPicks.push(key)
     }
     for (const w of tx.waiver_budget ?? []) {
       side(w.receiver).faab += w.amount

@@ -1,6 +1,7 @@
 import { useTitle } from '../useTitle'
 import { Link, useParams } from 'react-router'
 import ManagerLink from '../components/ManagerLink'
+import TradeTree from '../components/TradeTree'
 import ValueChart from '../components/ValueChart'
 import { formatDate, headshot, managerName, pickLabel, pickOriginalOwner, useData, type Data, type Trade, type TradeSide } from '../data'
 import { fcPickToday, fcPlayerToday, fcVerdict, peakSince, pickSeries, playerPoints, rewind, snapshotIndex, today, valueHistory, type Verdict } from '../rewind'
@@ -253,6 +254,13 @@ export default function TradeDetail() {
           <AssetRows data={data} trade={trade} side={side} />
         </section>
       ))}
+
+      <h2>Trade tree</h2>
+      <p className="muted small">
+        Where everything went next: players kept, released or flipped in later trades, picks used or moved, followed all the way
+        to what each team has today.
+      </p>
+      <TradeTree data={data} trade={trade} names={names} />
 
       <p className="muted small how">
         <strong>How this works.</strong> Value is the KeepTradeCut (KTC) superflex value of everything a side received, on

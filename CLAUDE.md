@@ -107,6 +107,11 @@ FAAB is shown but not scored (trades where a side got only FAAB are labeled "FAA
   (`origRosterId`), projected slot vs actual (draft-day/lottery moves), KTC value at draft and today, points for the drafter.
 - Phones: `.hide-sm` hides secondary table columns under 560px; the Rewind table marks winners in green instead of
   showing the winner columns. Every page sets its tab title with `useTitle()`; `index.html` has link-preview meta tags.
+- Trade trees (`src/trees.ts`, shown at the bottom of each trade page): follows each asset a side received —
+  kept / released / traded again (then follows what came back) / pick used to draft (then follows the player).
+  Uses `sentPlayers`/`sentPicks` on trade sides (from Sleeper `drops` and pick `previous_owner_id`). Each later trade is
+  followed once per tree (`packaged` marks other assets in the same deal), and a player released then re-acquired is not
+  followed past the release.
 - Trade list filters live in the URL (`?season=&manager=&q=&sort=`) so filtered views can be shared.
 
 ## Dev

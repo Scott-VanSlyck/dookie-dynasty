@@ -923,3 +923,62 @@ tr.round-break td {
 .strong {
   font-weight: 700;
 }
+
+/* ---------- trade trees ---------- */
+
+ul.tree {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 18px;
+  border-left: 2px solid var(--border);
+}
+
+.side-detail > ul.tree {
+  padding-left: 0;
+  border-left: none;
+}
+
+ul.tree li {
+  position: relative;
+  padding: 4px 0;
+}
+
+ul.tree ul.tree li::before {
+  content: '';
+  position: absolute;
+  left: -18px;
+  top: 20px;
+  width: 14px;
+  border-top: 2px solid var(--border);
+}
+
+.tree-node {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 6px 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.tree-asset {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tree-asset img,
+.tree-asset .pick-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg);
+  flex: none;
+}
+
+.tree-outcome {
+  color: var(--muted);
+}

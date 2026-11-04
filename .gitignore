@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Downloaded raw data (rebuilt by scripts/fetch-data.ts)
+data/raw/

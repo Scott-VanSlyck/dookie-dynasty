@@ -1,32 +1,48 @@
 # Dookie Dynasty site
 
 Website for a 12-team superflex dynasty fantasy football league on Sleeper.
-Main feature: **trade rewind** — score every trade at trade time, +3 months, +1 year and today.
+Main feature: **trade rewind**, which judges every trade at several checkpoints (see below).
 
 ## League
 - Current league ID (2026): `1313238117100056576`
 - Earlier seasons: follow `previous_league_id` (2025 `1180090570030120960`, 2024 `1048300314966831104`, 2023 `958843674790510592`)
+- 2023 draft was the 19-round startup; 2024+ are 3-round linear rookie drafts.
 - Scoring: PPR, 4-pt pass TD, +0.5 TE reception bonus. Lineup: QB, 2 RB, 2 WR, TE, 2 FLEX, SUPER_FLEX.
-- `roster_id` → manager mapping can change between seasons; always resolve per season.
+- `roster_id` → manager mapping can change between seasons (13 managers have held the 12 teams); always resolve per season via `rosterOwners`.
 
-## Data sources
-- Sleeper API (free, no key): trades via `/league/{id}/transactions/{week}` (weeks 0–18),
-  weekly player points via `/league/{id}/matchups/{week}` (`players_points`, `starters`),
-  drafts via `/league/{id}/drafts` and `/draft/{id}/picks`. Fetch `/players/nfl` (~5 MB) at most once a day.
-- Trade values: DynastyProcess `files/values-players.csv` and `values-picks.csv` on GitHub
-  (dynastyprocess/data). Weekly snapshots live in the file's git history back before 2023.
-  Use `value_2qb` (superflex). Map to Sleeper IDs with `db_playerids.csv`.
+## Data pipeline
+`npm run data` = `scripts/fetch-data.ts` (downloads to `data/raw/`, gitignored, cached) then
+`scripts/build-data.ts` (writes `public/data/*.json`, committed; the site reads these).
+- Sleeper API (free, no key): league, users, rosters, transactions (weeks 0–18), matchups, drafts + picks.
+  `/players/nfl` is fetched at most once a day.
+- Trade values: DynastyProcess `files/values.csv` (players **and** picks), one snapshot per weekly commit
+  in the dynastyprocess/data git history since 2023-06. Uses `value_2qb` (superflex).
+  `fp_id` → Sleeper ID via `db_playerids.csv`, falling back to name + position.
 
-## Trade scoring plan
-- Value: sum each side's DynastyProcess value at the chosen date. Picks use pick value until drafted, then the drafted player.
-- Production: starter points scored for the receiving roster up to the chosen date.
-- FAAB shown, not scored. Raw sums for now; consider a consolidation ("best player") adjustment later.
+### Output files (public/data/)
+- `league.json`: seasons (lastScoredWeek, playoffWeekStart, weekDates, draft), managers, rosterOwners
+- `trades.json`: `{id, season, week, date, sides: [{rosterId, userId, players[], picks[], faab}]}`; pick keys are `season-round-originalRosterId`
+- `values.json`: `dates[]` plus series aligned to it: `players[sleeperId][]` and `picks[key] = {season, round, orig, slot, playerId, draftDate, values[]}`
+- `scores.json`: `scores[season][week] = [{rosterId, matchupId, points, starters{pid: pts}, bench{pid: pts}}]`
+- `players.json`: `{pid: {name, pos, team}}`
+
+### Pick valuation
+Before the draft order is known (before Jan 10 of the draft year), a pick is worth that round's "Mid" value.
+After that, its exact slot ("2025 Pick 1.11"), falling back to its Early/Mid/Late tier. Once drafted, it is worth the player picked.
+Picks further out than DynastyProcess lists use the furthest year it has.
+
+## Trade rewind checkpoints
+Day of trade · End of that season (after the championship week) · 1 year later · Today, plus each asset's peak value since the trade.
+Each checkpoint shows:
+- **Value:** sum of each side's superflex value on that date.
+- **Production:** starter points scored for the receiving roster between the trade and that date.
+FAAB is shown but not scored. Raw sums for now; consider a consolidation ("best player") adjustment later.
 
 ## Build order
-1. Setup ✅  2. Data download script  3. Trade list page  4. Trade rewind scoring
+1. Setup ✅  2. Data pipeline ✅  3. Trade list page  4. Trade rewind scoring
 5. Manager pages  6. League history  7. Hosting + weekly auto-refresh
 
 ## Dev
-- Node.js is at `C:\Program Files\nodejs` (may need adding to PATH in a fresh shell).
+- Node.js is at `C:\Program Files\nodejs` (may need adding to PATH in a fresh shell). Node 26 runs the `.ts` scripts directly.
 - `npm run dev` starts the site at http://localhost:5173. `npm run build` checks types and builds.
-- React + TypeScript + Vite.
+- React + TypeScript + Vite. GitHub: Scott-VanSlyck/dookie-dynasty.

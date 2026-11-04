@@ -357,12 +357,21 @@ dates.forEach((date, i) => {
   pickTables.push(picks)
 })
 
-// TE premium: this league scores TEs at 1.5 PPR, but DynastyProcess values are for standard superflex
-// (and run well below the trade market for TEs). Boost every TE's value by this factor.
-const TE_PREMIUM = 1.25
-for (const [pid, series] of Object.entries(playerSeries)) {
-  if (sleeperPlayers[pid]?.pos === 'TE') playerSeries[pid] = series.map((v) => Math.round(v * TE_PREMIUM))
+// TE premium: this league scores TEs at 1.5 PPR (+0.5 over WRs), which is KeepTradeCut's "TE+" tier.
+// Neither DynastyProcess nor FantasyCalc includes a TE premium, so we add the same boost KTC applies.
+// KTC doesn't publish its formula; this curve was measured from its superflex TE values in Nov 2026
+// (base vs. TE+): about +350 for most TEs, growing to about +870 for the very best.
+//   ~8,150 → +11% | ~5,000 → +12% | ~3,000 → +15% | ~2,000 → +20% | ~1,000 → +37% | ~500 → +72%
+// Below 500 (TEs KTC doesn't even list) the boost shrinks in proportion, so worthless TEs stay near zero.
+function tePremiumBoost(value: number) {
+  if (value <= 0) return 0
+  if (value < 500) return value * 0.69
+  if (value <= 3000) return 340 + 0.025 * value
+  return 415 + 0.088 * (value - 3000)
 }
+const withTePremium = (pid: string, series: number[]) =>
+  sleeperPlayers[pid]?.pos === 'TE' ? series.map((v) => Math.round(v + tePremiumBoost(v))) : series
+for (const pid of Object.keys(playerSeries)) playerSeries[pid] = withTePremium(pid, playerSeries[pid])
 
 // DynastyProcess has short-lived glitches (e.g. 2nd-round picks worth ~5x for most of February 2025,
 // or a player missing from one week's file). Replace any value more than 2x away from the median of the
@@ -429,7 +438,7 @@ const fcDates = fcSnapshots.map((s) => s.date)
 const fcPlayers: Record<string, number[]> = {}
 for (const pid of referencedPlayers) {
   const series = fcSnapshots.map((s) => s.players[pid] ?? 0)
-  if (series.some((v) => v > 0)) fcPlayers[pid] = series
+  if (series.some((v) => v > 0)) fcPlayers[pid] = withTePremium(pid, series)
 }
 
 // FantasyCalc names picks "2027 1st (Early)", "2027 1st", ...
@@ -487,7 +496,7 @@ write('values.json', {
   dates,
   players: playerSeries,
   picks: Object.fromEntries([...pickAssets].map(([k, a]) => [k, { ...a, values: pickSeries[k] }])),
-  tePremium: TE_PREMIUM,
+  tePremium: 'KeepTradeCut TE+ curve',
   fc: { dates: fcDates, players: fcPlayers, picks: fcPicks },
 })
 write('fc-archive.json', { source: 'https://api.fantasycalc.com (superflex, 12 teams, PPR)', snapshots: fcSnapshots })

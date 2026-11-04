@@ -251,8 +251,8 @@ export default function TradeDetail() {
 
       <p className="muted small how">
         <strong>How this works.</strong> Value is the DynastyProcess superflex trade value of everything a side received,
-        on that date, with TEs boosted {Math.round((data.values.tePremium - 1) * 100)}% for this league's TE premium and
-        short-lived glitches in their history smoothed out. Picks count as an early, mid or late pick in their round
+        on that date, with short-lived glitches in their history smoothed out. TEs get the same boost KeepTradeCut's
+        "TE+" setting gives (this league's +0.5 PPR for TEs): about +350 for most TEs, up to about +870 for the very best. Picks count as an early, mid or late pick in their round
         (because of the draft lottery), then as the player drafted, but only for the team that made the pick; a team that
         traded the pick away keeps its value from draft day. FantasyCalc is a second opinion built from real trades; we
         started saving it daily in November 2026, so it only covers today for now. Points are what those players scored in

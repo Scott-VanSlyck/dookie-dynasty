@@ -81,9 +81,9 @@ export interface PickAsset {
 
 export interface Values {
   dates: string[]
-  players: Record<string, number[]> // DynastyProcess superflex, TEs boosted by tePremium, smoothed
+  players: Record<string, number[]> // DynastyProcess superflex, TE premium added (see tePremium), smoothed
   picks: Record<string, PickAsset>
-  tePremium: number
+  tePremium: string // how the TE premium was applied
   // FantasyCalc market values, from our own daily snapshots (history starts Nov 2026)
   fc: { dates: string[]; players: Record<string, number[]>; picks: Record<string, number[]> }
 }

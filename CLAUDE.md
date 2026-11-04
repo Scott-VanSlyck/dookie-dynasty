@@ -45,8 +45,10 @@ Sleeper already scored with that season's rules. DynastyProcess values are gener
 ### Value adjustments and second source
 - DynastyProcess history is noisy each Jan–Mar for rookies and picks (e.g. 2025 2nd-round picks ~5x for Feb 7–28, 2025).
   `smooth()` in build-data replaces values >2x off the median of the surrounding 13 weeks (skips the last 3 weeks).
-- `TE_PREMIUM = 1.25` multiplies DynastyProcess TE values (league is 1.5 PPR for TEs). DP runs far below the trade market
-  for TEs (top-24 TEs ~3.7x lower than FantasyCalc in Nov 2026), so this is conservative; tune it there.
+- TE premium: league is +0.5 PPR for TEs = KeepTradeCut's "TE+" tier. `tePremiumBoost()` in build-data reproduces KTC's
+  TE+ boost (measured from KTC superflex base vs. tep values, Nov 2026; within ±15 at every level): add 340 + 0.025v up to
+  v=3000, then 415 + 0.088(v−3000); below 500 add 0.69v. Applied to DynastyProcess and FantasyCalc TE values (neither has
+  TEP). Note DP's base TE values also run far below the market (Bowers DP 4,790 vs KTC 8,151 / FC 7,812); TEP can't fix that.
 - FantasyCalc (`api.fantasycalc.com/values/current?isDynasty=true&numQbs=2&numTeams=12&ppr=1`, has sleeperId, ignores TE
   premium) only serves today's values. `fetch-data.ts` saves one snapshot per day to `data/raw/fc/daily/` and pulls the
   previously published `fc-archive.json` from the live site, so history accumulates without committing data. build-data

@@ -3,7 +3,7 @@
 // Safe to re-run: finished seasons and old value snapshots are cached and skipped,
 // the current season is always refreshed.
 
-import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 const CURRENT_LEAGUE_ID = '1313238117100056576'
@@ -211,11 +211,96 @@ async function fetchFantasyCalc() {
   console.log(`  ${Object.keys(players).length} players, ${Object.keys(picks).length} picks saved for ${date}` + (published ? `; ${published.snapshots.length} earlier days from the live site` : ''))
 }
 
+// ---------- KeepTradeCut history via Dynasty Daddy ----------
+// Dynasty Daddy (dynasty-daddy.com) has a free, keyless API with daily value history back to 2023
+// for KeepTradeCut (superflex), FantasyCalc and others, for players and Early/Mid/Late picks.
+// Each asset's full history is ~2 MB, so we download it once, keep only date + KTC + FantasyCalc
+// values, and after that just append today's values from a single "all players today" call.
+// The compact archive is also published with the site (ktc-archive.json) and restored from there,
+// so the big one-time download never has to be repeated.
+
+const DD = 'https://dynasty-daddy.com/api/v1'
+const SITE_KTC_ARCHIVE_URL = 'https://scott-vanslyck.github.io/dookie-dynasty/data/ktc-archive.json'
+type DdHistory = [string, number | null, number | null][] // [date, KTC superflex, FantasyCalc superflex]
+
+const ddName = (name: string, pos: string) => name.toLowerCase().replace(/[^a-z]/g, '') + pos.toLowerCase()
+
+async function fetchKtcHistory() {
+  console.log('Dynasty Daddy: KeepTradeCut value history')
+  const dir = join(RAW, 'dd')
+  const archivePath = join(dir, 'archive.json')
+  let archive: { assets: Record<string, DdHistory>; ids: Record<string, string> } = existsSync(archivePath)
+    ? JSON.parse(readFileSync(archivePath, 'utf8'))
+    : { assets: {}, ids: {} }
+  if (!Object.keys(archive.assets).length) {
+    const published = await get(SITE_KTC_ARCHIVE_URL).catch(() => null)
+    if (published?.assets) {
+      archive = { assets: published.assets, ids: published.ids ?? {} }
+      console.log(`  restored ${Object.keys(archive.assets).length} histories from the live site`)
+    }
+  }
+
+  // Everyone we may need a value for: every player ever traded, and every rookie drafted.
+  const seasons: string[] = JSON.parse(readFileSync(join(RAW, 'sleeper', 'seasons.json'), 'utf8'))
+  const needed = new Set<string>()
+  for (const s of seasons) {
+    for (const tx of JSON.parse(readFileSync(join(RAW, 'sleeper', s, 'transactions.json'), 'utf8')))
+      if (tx.type === 'trade') Object.keys(tx.adds ?? {}).forEach((pid) => needed.add(pid))
+    const picks = JSON.parse(readFileSync(join(RAW, 'sleeper', s, 'draft_picks.json'), 'utf8'))
+    if (s !== seasons[0]) for (const list of Object.values<any[]>(picks)) list.forEach((p) => p.player_id && needed.add(p.player_id))
+  }
+
+  const today: any[] = (await get(`${DD}/player/all/today?market=0`)) ?? []
+  const bySleeper = new Map(today.filter((r) => r.sleeper_id).map((r) => [String(r.sleeper_id), r.name_id]))
+  const sleeperPlayers = JSON.parse(readFileSync(join(RAW, 'sleeper', 'players.json'), 'utf8'))
+  for (const pid of needed) {
+    const p = sleeperPlayers[pid]
+    const id = bySleeper.get(pid) ?? archive.ids[pid] ?? (p?.name && p?.pos ? ddName(p.name, p.pos) : null)
+    if (id) archive.ids[pid] = id
+  }
+  // Picks: "2025mid1stpi" etc. for every draft year the league could have traded.
+  const pickIds: string[] = []
+  const lastYear = new Date().getFullYear() + 3
+  for (let y = 2023; y <= lastYear; y++)
+    for (const tier of ['early', 'mid', 'late']) for (const rd of ['1st', '2nd', '3rd', '4th']) pickIds.push(`${y}${tier}${rd}pi`)
+
+  const wanted = [...new Set([...Object.values(archive.ids), ...pickIds])]
+  const missing = wanted.filter((id) => !archive.assets[id])
+  console.log(`  ${wanted.length} players and picks; downloading full history for ${missing.length} new ones`)
+  let done = 0
+  await mapLimit(missing, 3, async (id) => {
+    const rows: any[] = (await get(`${DD}/player/${id}`).catch(() => null)) ?? []
+    const byDate = new Map<string, [string, number | null, number | null]>()
+    for (const r of rows) {
+      if (!r?.date) continue
+      const d = r.date.slice(0, 10)
+      byDate.set(d, [d, r.sf_trade_value ?? null, r.fc_sf_trade_value ?? null])
+    }
+    archive.assets[id] = [...byDate.values()].sort((a, b) => a[0].localeCompare(b[0]))
+    if (++done % 50 === 0) console.log(`    ${done}/${missing.length}`)
+  })
+
+  // Append today's KTC values to everything we track.
+  const todayDate = today[0]?.date?.slice(0, 10)
+  if (todayDate) {
+    const byId = new Map(today.map((r) => [r.name_id, r]))
+    for (const [id, hist] of Object.entries(archive.assets)) {
+      const r = byId.get(id)
+      if (!r || hist.at(-1)?.[0] === todayDate) continue
+      hist.push([todayDate, r.sf_trade_value ?? null, hist.at(-1)?.[2] ?? null])
+    }
+  }
+  save(archivePath, archive)
+  const withData = Object.values(archive.assets).filter((h) => h.length).length
+  console.log(`  ${withData} assets with history, latest ${todayDate ?? 'unknown'}`)
+}
+
 // ---------- main ----------
 
 const started = Date.now()
 await fetchSleeper()
 await fetchValueHistory()
 await fetchFantasyCalc()
+await fetchKtcHistory()
 console.log(`Done in ${((Date.now() - started) / 1000).toFixed(1)}s. Raw data is in data/raw/. Next: node scripts/build-data.ts`)
 

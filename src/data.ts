@@ -81,10 +81,10 @@ export interface PickAsset {
 
 export interface Values {
   dates: string[]
-  players: Record<string, number[]> // DynastyProcess superflex, TE premium added (see tePremium), smoothed
+  players: Record<string, number[]> // KeepTradeCut superflex (DynastyProcess where KTC has none), TE premium added
   picks: Record<string, PickAsset>
   tePremium: string // how the TE premium was applied
-  // FantasyCalc market values, from our own daily snapshots (history starts Nov 2026)
+  // FantasyCalc market values on the same dates (history via Dynasty Daddy, latest day from our own snapshot)
   fc: { dates: string[]; players: Record<string, number[]>; picks: Record<string, number[]> }
 }
 

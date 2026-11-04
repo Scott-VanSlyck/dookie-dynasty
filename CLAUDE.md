@@ -42,7 +42,22 @@ TE premium every season (rec 1 + bonus_rec_te 0.5). 2023 had 0.5 first-down bonu
 2024+ use rec_fd 0.25 / rush_fd 0.5 and 2/4 yardage bonuses; 3 WR starters from 2024. Points in `scores.json` come from
 Sleeper already scored with that season's rules. DynastyProcess values are generic superflex (no TE premium).
 
-### Value adjustments and second source
+### Main value source: KeepTradeCut via Dynasty Daddy (league's choice, Nov 2026)
+- The league uses KTC, so trade values are **KTC superflex**. KTC has no public API and its terms forbid scraping; the
+  league chose to use KTC history as stored by Dynasty Daddy's free, keyless API (robots.txt allows all):
+  `GET https://dynasty-daddy.com/api/v1/player/{name_id}` = full daily history (`sf_trade_value` = KTC SF,
+  `fc_sf_trade_value` = FantasyCalc SF; also dp_, daddy_ etc.), back to 2023. `/player/all/today?market=0` = today's KTC
+  for all players + picks. name_id = lowercase letters of name + position (`jaxonsmithnjigbawr`); picks are
+  `{year}{early|mid|late}{1st..4th}pi`. Never call KTC directly.
+- `fetchKtcHistory()` downloads each needed asset's history once (~2 MB each), keeps `[date, ktc, fc]`, then appends
+  today's values daily from one call. The compact archive is published as `ktc-archive.json` and restored from the live
+  site if the local/CI cache is empty.
+- build-data timeline = DynastyProcess weekly dates + latest KTC day. KTC value older than 21 days = not listed → falls back
+  to DynastyProcess. KTC base values have no TE premium, so `tePremiumBoost()` (KTC's TE+ curve) is added.
+- `values.json` `players`/`picks` = KTC; `fc` = FantasyCalc on the same dates (Dynasty Daddy history; latest day from our own
+  FantasyCalc snapshot, which also fills FC pick values that Dynasty Daddy lacks).
+
+### DynastyProcess fallback, TE premium, FantasyCalc snapshots
 - DynastyProcess history is noisy each Jan–Mar for rookies and picks (e.g. 2025 2nd-round picks ~5x for Feb 7–28, 2025).
   `smooth()` in build-data replaces values >2x off the median of the surrounding 13 weeks (skips the last 3 weeks).
 - TE premium: league is +0.5 PPR for TEs = KeepTradeCut's "TE+" tier. `tePremiumBoost()` in build-data reproduces KTC's

@@ -34,7 +34,7 @@ export default function TradeCard({ data, trade }: { data: Data; trade: Trade })
         </span>
       </header>
       <Link to={`/trades/${trade.id}`} className="verdict-strip">
-        <Pill data={data} trade={trade} v={v.value} what="DynastyProcess" />
+        <Pill data={data} trade={trade} v={v.value} what="KTC" />
         {fc && <Pill data={data} trade={trade} v={fc} what="FantasyCalc" />}
         <Pill data={data} trade={trade} v={v.points} what="Points so far" />
         <span className="rewind-link">Rewind →</span>

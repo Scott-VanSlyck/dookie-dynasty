@@ -187,7 +187,7 @@ export function fcPickToday(data: Data, key: string, rosterId: number): number |
   if (!fc?.dates.length) return null
   const pick = data.values.picks[key]
   // A pick this team traded away before the draft keeps its frozen pre-draft value (FantasyCalc
-  // has no history that far back, so the DynastyProcess value is used).
+  // pick values have gaps that far back, so the main KTC value is used).
   if (pick?.playerId && pick.draftDate && pick.draftedBy !== rosterId) return pickSeries(data, key, rosterId).at(-1) ?? 0
   return fc.picks[key]?.at(-1) ?? 0
 }

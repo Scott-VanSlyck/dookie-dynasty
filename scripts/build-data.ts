@@ -433,12 +433,88 @@ if (existsSync(fcDaily)) for (const f of readdirSync(fcDaily)) if (f.endsWith('.
   fcByDate.set(s.date, s)
 }
 const fcSnapshots = [...fcByDate.values()].sort((a, b) => a.date.localeCompare(b.date))
-const fcDates = fcSnapshots.map((s) => s.date)
+const latestOwnFc = fcSnapshots.at(-1) ?? null
 
+// ---------- Main values: KeepTradeCut history via Dynasty Daddy (see fetch-data.ts) ----------
+// KTC superflex values are the basis (it's what this league uses). FantasyCalc (also from Dynasty
+// Daddy's history, plus our own daily snapshot for the latest day) is the second opinion.
+// DynastyProcess (above) is only a fallback for dates or assets KTC doesn't cover.
+
+type DdHistory = [string, number | null, number | null][]
+const ddArchive: { assets: Record<string, DdHistory>; ids: Record<string, string> } = existsSync(join(RAW, 'dd', 'archive.json'))
+  ? load('dd/archive.json')
+  : { assets: {}, ids: {} }
+const ddLatest = Object.values(ddArchive.assets).reduce((m, h) => (h.at(-1)?.[0] ?? '') > m ? h.at(-1)![0] : m, '')
+
+// The timeline: DynastyProcess's weekly dates, plus the latest day we have from KTC/FantasyCalc.
+const timeline = [...dates]
+for (const d of [ddLatest, latestOwnFc?.date ?? ''].sort()) if (d && d > timeline.at(-1)!) timeline.push(d)
+const dpIndex = (date: string) => {
+  let j = -1
+  for (let k = 0; k < dates.length && dates[k] <= date; k++) j = k
+  return j
+}
+
+// Value from a Dynasty Daddy history on a date (col 1 = KTC, col 2 = FantasyCalc). A value older than
+// 21 days means the asset stopped being listed, which we treat as "no value" (null).
+function ddAt(id: string | undefined, date: string, col: 1 | 2): number | null {
+  const hist = id ? ddArchive.assets[id] : undefined
+  if (!hist?.length) return null
+  let row: DdHistory[number] | undefined
+  for (const r of hist) {
+    if (r[0] > date) break
+    row = r
+  }
+  if (!row || row[col] == null) return null
+  const ageDays = (Date.parse(date) - Date.parse(row[0])) / 86400000
+  return ageDays > 21 ? null : row[col]
+}
+
+const ddPickId = (a: PickAsset, date: string) => {
+  const orderKnown = a.projSlot != null && date >= `${a.season}-01-10`
+  const tier = !orderKnown ? 'mid' : a.projSlot! <= 4 ? 'early' : a.projSlot! <= 8 ? 'mid' : 'late'
+  return `${a.season}${tier}${ordinal(a.round)}pi`
+}
+
+const ktcPlayers: Record<string, number[]> = {}
 const fcPlayers: Record<string, number[]> = {}
+let fallbackPoints = 0
 for (const pid of referencedPlayers) {
-  const series = fcSnapshots.map((s) => s.players[pid] ?? 0)
-  if (series.some((v) => v > 0)) fcPlayers[pid] = withTePremium(pid, series)
+  const id = ddArchive.ids[pid]
+  const ktc = timeline.map((d) => {
+    const v = ddAt(id, d, 1)
+    if (v != null) return Math.round(v + (sleeperPlayers[pid]?.pos === 'TE' ? tePremiumBoost(v) : 0))
+    const j = dpIndex(d)
+    const dp = j >= 0 ? playerSeries[pid]?.[j] ?? 0 : 0
+    if (dp > 0) fallbackPoints++
+    return dp
+  })
+  if (ktc.some((v) => v > 0)) ktcPlayers[pid] = ktc
+  const fc = timeline.map((d, i) =>
+    i === timeline.length - 1 && latestOwnFc && latestOwnFc.date >= d && latestOwnFc.players[pid] != null
+      ? latestOwnFc.players[pid]
+      : ddAt(id, d, 2) ?? 0,
+  )
+  if (fc.some((v) => v > 0)) fcPlayers[pid] = withTePremium(pid, fc)
+}
+
+const ktcPicks: Record<string, number[]> = {}
+const fcPicks: Record<string, number[]> = {}
+for (const [key, a] of pickAssets) {
+  const drafted = (d: string) => a.playerId && a.draftDate && d >= a.draftDate
+  ktcPicks[key] = timeline.map((d, i) => {
+    if (drafted(d)) return ktcPlayers[a.playerId!]?.[i] ?? 0
+    const v = ddAt(ddPickId(a, d), d, 1)
+    if (v != null) return v
+    const j = dpIndex(d)
+    return j >= 0 ? pickSeries[key][j] : 0
+  })
+  fcPicks[key] = timeline.map((d, i) => {
+    if (drafted(d)) return fcPlayers[a.playerId!]?.[i] ?? 0
+    // Dynasty Daddy's FantasyCalc pick history has gaps; for the latest day use our own snapshot.
+    if (i === timeline.length - 1 && latestOwnFc && latestOwnFc.date >= d) return fcPickValue(latestOwnFc.picks, d, a)
+    return ddAt(ddPickId(a, d), d, 2) ?? 0
+  })
 }
 
 // FantasyCalc names picks "2027 1st (Early)", "2027 1st", ...
@@ -449,12 +525,6 @@ function fcPickValue(table: Record<string, number>, date: string, a: PickAsset) 
   for (const name of [`${a.season} ${rd} (${tier})`, `${a.season} ${rd}`]) if (table[name] != null) return table[name]
   const years = Object.keys(table).filter((k) => new RegExp(`^\\d{4} ${rd}$`).test(k)).sort()
   return years.length ? table[years.at(-1)!] : 0
-}
-const fcPicks: Record<string, number[]> = {}
-for (const [key, a] of pickAssets) {
-  fcPicks[key] = fcSnapshots.map((s, i) =>
-    a.playerId && a.draftDate && s.date >= a.draftDate ? fcPlayers[a.playerId]?.[i] ?? 0 : fcPickValue(s.picks, s.date, a),
-  )
 }
 
 // ---------- Weekly scores ----------
@@ -493,13 +563,16 @@ write('league.json', { name: raw[seasonList.at(-1)!].league.name, seasons, manag
 write('trades.json', trades)
 write('players.json', players)
 write('values.json', {
-  dates,
-  players: playerSeries,
-  picks: Object.fromEntries([...pickAssets].map(([k, a]) => [k, { ...a, values: pickSeries[k] }])),
+  source: 'KeepTradeCut superflex (history via Dynasty Daddy), DynastyProcess where KTC has no value',
+  dates: timeline,
+  players: ktcPlayers,
+  picks: Object.fromEntries([...pickAssets].map(([k, a]) => [k, { ...a, values: ktcPicks[k] }])),
   tePremium: 'KeepTradeCut TE+ curve',
-  fc: { dates: fcDates, players: fcPlayers, picks: fcPicks },
+  fc: { dates: timeline, players: fcPlayers, picks: fcPicks },
 })
 write('fc-archive.json', { source: 'https://api.fantasycalc.com (superflex, 12 teams, PPR)', snapshots: fcSnapshots })
+// Compact KTC/FantasyCalc history, published so future runs can restore it instead of re-downloading.
+write('ktc-archive.json', { source: 'https://dynasty-daddy.com (KeepTradeCut and FantasyCalc superflex history)', ...ddArchive })
 write('scores.json', scores)
 
 // ---------- Report ----------
@@ -508,6 +581,8 @@ const tradedPlayers = new Set(trades.flatMap((t) => t.sides.flatMap((s: any) => 
 const noValue = [...tradedPlayers].filter((pid) => !valuedPlayers.has(pid) && sleeperPlayers[pid]?.pos !== 'DEF' && sleeperPlayers[pid]?.pos !== 'K')
 console.log(`\n${trades.length} trades, ${tradedPlayers.size} players and ${pickAssets.size} picks traded.`)
 console.log(`${[...pickAssets.values()].filter((a) => a.playerId).length} traded picks already turned into players.`)
-console.log(`${dates.length} value snapshots from ${dates[0]} to ${dates.at(-1)}.`)
-console.log(`${noValue.length} traded players never had a DynastyProcess value (deep bench guys count as 0):`)
-console.log('  ' + noValue.map((pid) => `${players[pid].name} (${players[pid].pos})`).join(', '))
+console.log(`${timeline.length} value dates from ${timeline[0]} to ${timeline.at(-1)}.`)
+const noKtc = [...tradedPlayers].filter((pid) => !ddArchive.assets[ddArchive.ids[pid]]?.length)
+console.log(`${noKtc.length} traded players with no KTC history (DynastyProcess used instead): ${noKtc.map((pid) => players[pid]?.name).join(', ')}`)
+console.log(`${fallbackPoints} player-weeks fell back to DynastyProcess (before KTC listed them, or after they dropped off).`)
+console.log(`${noValue.length} traded players never had a DynastyProcess value either.`)

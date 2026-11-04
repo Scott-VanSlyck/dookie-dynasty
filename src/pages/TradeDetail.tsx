@@ -154,7 +154,7 @@ export default function TradeDetail() {
 
       <div className="hero-verdicts">
         <div>
-          <span className="muted small">Winner today, by value (DynastyProcess)</span>
+          <span className="muted small">Winner today, by KTC value</span>
           <VerdictText data={data} trade={trade} v={now.value} />
         </div>
         {fc && (
@@ -250,13 +250,14 @@ export default function TradeDetail() {
       ))}
 
       <p className="muted small how">
-        <strong>How this works.</strong> Value is the DynastyProcess superflex trade value of everything a side received,
-        on that date, with short-lived glitches in their history smoothed out. TEs get the same boost KeepTradeCut's
-        "TE+" setting gives (this league's +0.5 PPR for TEs): about +350 for most TEs, up to about +870 for the very best. Picks count as an early, mid or late pick in their round
-        (because of the draft lottery), then as the player drafted, but only for the team that made the pick; a team that
-        traded the pick away keeps its value from draft day. FantasyCalc is a second opinion built from real trades; we
-        started saving it daily in November 2026, so it only covers today for now. Points are what those players scored in
-        this team's starting lineup after the trade, until they left the team. Under 10% apart counts as even.
+        <strong>How this works.</strong> Value is the KeepTradeCut (KTC) superflex value of everything a side received, on
+        that date, using KTC's daily history as saved by Dynasty Daddy. TEs get KTC's "TE+" boost (this league's +0.5 PPR
+        for TEs): about +350 for most TEs, up to about +870 for the very best. Picks count as an early, mid or late pick in
+        their round (because of the draft lottery), then as the player drafted, but only for the team that made the pick; a
+        team that traded the pick away keeps its value from draft day. When KTC doesn't list a player on a date (before it
+        added him, or after he dropped off), DynastyProcess's value is used instead. FantasyCalc, built from real trades, is
+        shown as a second opinion. Points are what those players scored in this team's starting lineup after the trade,
+        until they left the team. Under 10% apart counts as even.
       </p>
     </>
   )

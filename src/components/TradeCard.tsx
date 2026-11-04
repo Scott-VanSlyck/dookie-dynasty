@@ -1,6 +1,7 @@
 import { Link } from 'react-router'
 import { formatDate, headshot, managerName, pickLabel, pickOriginalOwner, type Data, type Trade } from '../data'
 import { todayVerdicts, type Verdict } from '../rewind'
+import ManagerLink from './ManagerLink'
 
 function Pill({ data, trade, v, what }: { data: Data; trade: Trade; v: Verdict; what: string }) {
   return (
@@ -36,7 +37,7 @@ export default function TradeCard({ data, trade }: { data: Data; trade: Trade })
         {trade.sides.map((side) => (
           <section key={side.rosterId} className="side">
             <h3>
-              {managerName(data, side.userId)} <span className="muted">gets</span>
+              <ManagerLink data={data} userId={side.userId} /> <span className="muted">gets</span>
             </h3>
             <ul>
               {side.players.map((pid) => {

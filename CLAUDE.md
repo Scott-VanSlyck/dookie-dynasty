@@ -44,7 +44,7 @@ FAAB is shown but not scored (trades where a side got only FAAB are labeled "FAA
 
 ## Build order
 1. Setup ✅  2. Data pipeline ✅  3. Trade list page ✅  4. Trade rewind scoring ✅
-5. Manager pages  6. League history  7. Hosting + daily auto-refresh ✅
+5. Manager pages ✅  6. League history  7. Hosting + daily auto-refresh ✅
 
 ## Hosting
 - Live at https://scott-vanslyck.github.io/dookie-dynasty/ (GitHub Pages, source: GitHub Actions).
@@ -55,6 +55,9 @@ FAAB is shown but not scored (trades where a side got only FAAB are labeled "FAA
 ## Site structure
 - Hash routing (react-router `HashRouter`) so it works on GitHub Pages. Pages in `src/pages/`, shared pieces in `src/components/`.
 - `src/data.ts` loads `public/data/*.json` once and holds the types + name helpers.
+- Manager stats in `src/managers.ts`: per trade, net = own side minus the average of the other sides (value today, points since trade).
+  `/managers` is a leaderboard by net value; `/managers/:userId` shows record, best/worst trade, partners and all trades.
+  Use `ManagerLink` for manager names. CSS: `.pos` is the position badge; use `.gain`/`.drop` for green/red numbers.
 - Trade list filters live in the URL (`?season=&manager=&q=&sort=`) so filtered views can be shared.
 
 ## Dev

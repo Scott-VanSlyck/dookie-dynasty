@@ -1,4 +1,5 @@
 import { Link, useParams } from 'react-router'
+import ManagerLink from '../components/ManagerLink'
 import ValueChart from '../components/ValueChart'
 import { formatDate, headshot, managerName, pickLabel, pickOriginalOwner, useData, type Data, type Trade, type TradeSide } from '../data'
 import { peakSince, playerPoints, rewind, snapshotIndex, today, valueHistory, type Verdict } from '../rewind'
@@ -134,7 +135,14 @@ export default function TradeDetail() {
       <Link to="/trades" className="small">
         ← All trades
       </Link>
-      <h1>{names.join(' × ')}</h1>
+      <h1>
+        {trade.sides.map((s, i) => (
+          <span key={s.rosterId}>
+            {i > 0 && ' × '}
+            <ManagerLink data={data} userId={s.userId} />
+          </span>
+        ))}
+      </h1>
       <p className="muted">
         {formatDate(trade.date)} · {trade.season} {trade.week > 0 ? `week ${trade.week}` : 'offseason'}
       </p>
@@ -218,7 +226,7 @@ export default function TradeDetail() {
         <section key={side.rosterId} className="side-detail">
           <h3>
             <span className="dot" style={{ background: `var(--series-${i + 1})` }} />
-            {names[i]} got
+            <ManagerLink data={data} userId={side.userId} /> got
           </h3>
           <AssetRows data={data} trade={trade} side={side} />
         </section>

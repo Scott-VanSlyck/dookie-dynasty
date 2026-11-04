@@ -44,7 +44,13 @@ FAAB is shown but not scored (trades where a side got only FAAB are labeled "FAA
 
 ## Build order
 1. Setup ✅  2. Data pipeline ✅  3. Trade list page ✅  4. Trade rewind scoring ✅
-5. Manager pages  6. League history  7. Hosting + weekly auto-refresh
+5. Manager pages  6. League history  7. Hosting + daily auto-refresh ✅
+
+## Hosting
+- Live at https://scott-vanslyck.github.io/dookie-dynasty/ (GitHub Pages, source: GitHub Actions).
+- `.github/workflows/deploy.yml` rebuilds data (`npm run data`) and redeploys on every push to main, daily at 11:00 UTC, and on demand.
+  `data/raw` is kept between runs with actions/cache.
+- Vite `base` is `/dookie-dynasty/` for `build` and `preview`; `npm run dev` stays at `/`. Always load data with `import.meta.env.BASE_URL`.
 
 ## Site structure
 - Hash routing (react-router `HashRouter`) so it works on GitHub Pages. Pages in `src/pages/`, shared pieces in `src/components/`.

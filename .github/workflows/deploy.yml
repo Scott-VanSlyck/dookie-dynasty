@@ -1,0 +1,61 @@
+# Builds the site with fresh league data and publishes it to GitHub Pages.
+# Runs on every push to main, every morning, and on demand (Actions tab -> Deploy site -> Run workflow).
+name: Deploy site
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 11 * * *' # daily, 11:00 UTC (early morning US time)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+
+      - run: npm ci
+
+      # Keep downloaded raw data between runs so finished seasons and old value
+      # snapshots aren't downloaded again every day.
+      - uses: actions/cache@v4
+        with:
+          path: data/raw
+          key: raw-data-${{ github.run_id }}
+          restore-keys: raw-data-
+
+      - name: Refresh league data
+        run: npm run data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -28,7 +28,10 @@ function isFresh(path: string, maxAgeMs: number) {
 async function get(url: string, kind: 'json' | 'text' = 'json', tries = 4): Promise<any> {
   for (let attempt = 1; ; attempt++) {
     try {
-      const res = await fetch(url, { headers: { 'User-Agent': 'dookie-dynasty-site' } })
+      const headers: Record<string, string> = { 'User-Agent': 'dookie-dynasty-site' }
+      // In GitHub Actions, use the workflow's token so GitHub API rate limits aren't shared with other users.
+      if (process.env.GITHUB_TOKEN && url.startsWith('https://api.github.com/')) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`
+      const res = await fetch(url, { headers })
       if (res.status === 404) return null
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
       return kind === 'json' ? await res.json() : await res.text()

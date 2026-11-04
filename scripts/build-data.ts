@@ -106,7 +106,46 @@ for (const season of seasonList) {
     draft: rookieDraft
       ? { id: rookieDraft.draft_id, type: rookieDraft.type, rounds: rookieDraft.settings.rounds, date: rookieDraft.start_time ? isoDate(rookieDraft.start_time) : null }
       : null,
+    standings: buildStandings(r),
+    playoffs: buildPlayoffs(load(`sleeper/${season}/winners_bracket.json`)),
   })
+}
+
+// Regular-season standings exactly as Sleeper reports them. This league also plays the
+// weekly median, so a 14-week season has 28 "games".
+function buildStandings(r: any) {
+  const teamName = new Map(r.users.map((u: any) => [u.user_id, u.metadata?.team_name ?? null]))
+  const pts = (whole: number, dec: number) => Math.round(((whole ?? 0) + (dec ?? 0) / 100) * 100) / 100
+  return r.rosters
+    .map((ro: any) => {
+      const st = ro.settings ?? {}
+      return {
+        rosterId: ro.roster_id,
+        userId: ro.owner_id,
+        teamName: teamName.get(ro.owner_id) ?? null,
+        wins: st.wins ?? 0,
+        losses: st.losses ?? 0,
+        ties: st.ties ?? 0,
+        pf: pts(st.fpts, st.fpts_decimal),
+        pa: pts(st.fpts_against, st.fpts_against_decimal),
+        maxPf: pts(st.ppts, st.ppts_decimal), // best possible lineup every week
+      }
+    })
+    .sort((a: any, b: any) => b.wins - a.wins || b.pf - a.pf)
+}
+
+// Final places from the winners bracket (matches with "p" decide that place), plus who made the playoffs.
+function buildPlayoffs(bracket: any[]) {
+  if (!bracket?.length) return null
+  const places: Record<number, number> = {}
+  for (const m of bracket) {
+    if (m.p && m.w && m.l) {
+      places[m.p] = m.w
+      places[m.p + 1] = m.l
+    }
+  }
+  const teams = [...new Set(bracket.flatMap((m) => [m.t1, m.t2]).filter((t) => typeof t === 'number'))]
+  return { teams, places, complete: places[1] != null }
 }
 
 // ---------- Draft pick resolution ----------

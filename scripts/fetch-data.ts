@@ -61,18 +61,21 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
 async function fetchSeason(leagueId: string) {
   const league = await get(`${SLEEPER}/league/${leagueId}`)
   const dir = join(RAW, 'sleeper', league.season)
-  const done = league.status === 'complete' && existsSync(join(dir, 'complete.flag'))
+  const done =
+    league.status === 'complete' && existsSync(join(dir, 'complete.flag')) && existsSync(join(dir, 'winners_bracket.json'))
   if (done) {
     console.log(`  ${league.season}: cached (season complete)`)
     return league
   }
 
   const weeks = Array.from({ length: 19 }, (_, i) => i) // 0..18
-  const [users, rosters, tradedPicks, drafts, txWeeks, matchupWeeks] = await Promise.all([
+  const [users, rosters, tradedPicks, drafts, winnersBracket, losersBracket, txWeeks, matchupWeeks] = await Promise.all([
     get(`${SLEEPER}/league/${leagueId}/users`),
     get(`${SLEEPER}/league/${leagueId}/rosters`),
     get(`${SLEEPER}/league/${leagueId}/traded_picks`),
     get(`${SLEEPER}/league/${leagueId}/drafts`),
+    get(`${SLEEPER}/league/${leagueId}/winners_bracket`),
+    get(`${SLEEPER}/league/${leagueId}/losers_bracket`),
     mapLimit(weeks, 6, (w) => get(`${SLEEPER}/league/${leagueId}/transactions/${w}`)),
     mapLimit(weeks.slice(1), 6, (w) => get(`${SLEEPER}/league/${leagueId}/matchups/${w}`)),
   ])
@@ -97,6 +100,8 @@ async function fetchSeason(leagueId: string) {
   save(join(dir, 'draft_picks.json'), draftPicks)
   save(join(dir, 'transactions.json'), [...txById.values()])
   save(join(dir, 'matchups.json'), matchups)
+  save(join(dir, 'winners_bracket.json'), winnersBracket ?? [])
+  save(join(dir, 'losers_bracket.json'), losersBracket ?? [])
   if (league.status === 'complete') save(join(dir, 'complete.flag'), new Date().toISOString())
 
   const trades = [...txById.values()].filter((t) => t.type === 'trade' && t.status === 'complete')

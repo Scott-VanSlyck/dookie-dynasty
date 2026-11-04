@@ -11,6 +11,20 @@ export interface Season {
   playoffWeekStart: number
   weekDates: Record<string, string>
   draft: { id: string; type: string; rounds: number; date: string | null } | null
+  standings: Standing[] // regular season, sorted by wins then points for
+  playoffs: { teams: number[]; places: Record<string, number>; complete: boolean } | null
+}
+
+export interface Standing {
+  rosterId: number
+  userId: string
+  teamName: string | null
+  wins: number
+  losses: number
+  ties: number
+  pf: number
+  pa: number
+  maxPf: number
 }
 
 export interface Manager {

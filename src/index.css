@@ -654,6 +654,94 @@ tr.clickable:hover td {
 .result-loss { background: #d64545; }
 .result-even { background: #7a8290; }
 
+/* ---------- history ---------- */
+
+.champs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.champ-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.champ-card .trophy {
+  font-size: 1.6rem;
+  line-height: 1.2;
+}
+
+.champ-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.champ-card.in-progress {
+  border-style: dashed;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.tabs button {
+  font: inherit;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.tabs button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.finish {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.finish-champion { color: #c98500; }
+.finish-runner-up,
+.finish-3rd { color: var(--text); }
+.finish-playoffs { color: var(--muted); }
+
+.records {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.record {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.record strong {
+  font-size: 1.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 560px) {
   .side + .side {
     border-left: none;

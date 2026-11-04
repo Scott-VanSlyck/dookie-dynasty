@@ -44,7 +44,7 @@ FAAB is shown but not scored (trades where a side got only FAAB are labeled "FAA
 
 ## Build order
 1. Setup ✅  2. Data pipeline ✅  3. Trade list page ✅  4. Trade rewind scoring ✅
-5. Manager pages ✅  6. League history  7. Hosting + daily auto-refresh ✅
+5. Manager pages ✅  6. League history ✅  7. Hosting + daily auto-refresh ✅
 
 ## Hosting
 - Live at https://scott-vanslyck.github.io/dookie-dynasty/ (GitHub Pages, source: GitHub Actions).
@@ -58,6 +58,11 @@ FAAB is shown but not scored (trades where a side got only FAAB are labeled "FAA
 - Manager stats in `src/managers.ts`: per trade, net = own side minus the average of the other sides (value today, points since trade).
   `/managers` is a leaderboard by net value; `/managers/:userId` shows record, best/worst trade, partners and all trades.
   Use `ManagerLink` for manager names. CSS: `.pos` is the position badge; use `.gain`/`.drop` for green/red numbers.
+- History (`src/history.ts`, `/history`): champions, standings by season, all-time table, records, head-to-head.
+  The league plays the weekly median, so Sleeper records count two games per week; standings come straight from roster
+  settings (`league.json` `seasons[].standings`, incl. `maxPf` for lineup %). Head-to-head counts real matchups only.
+  Playoff places come from `winners_bracket` (`seasons[].playoffs`); Sleeper pre-fills a projected bracket, so ignore it
+  until `lastScoredWeek >= playoffWeekStart`.
 - Trade list filters live in the URL (`?season=&manager=&q=&sort=`) so filtered views can be shared.
 
 ## Dev

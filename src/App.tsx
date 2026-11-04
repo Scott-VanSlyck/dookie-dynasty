@@ -1,4 +1,5 @@
 import { HashRouter, NavLink, Route, Routes } from 'react-router'
+import History from './pages/History'
 import Home from './pages/Home'
 import ManagerDetail from './pages/ManagerDetail'
 import Managers from './pages/Managers'
@@ -19,6 +20,7 @@ export default function App() {
             </NavLink>
             <NavLink to="/trades">Trades</NavLink>
             <NavLink to="/managers">Managers</NavLink>
+            <NavLink to="/history">History</NavLink>
           </nav>
         </div>
       </header>
@@ -29,6 +31,7 @@ export default function App() {
           <Route path="/trades/:id" element={<TradeDetail />} />
           <Route path="/managers" element={<Managers />} />
           <Route path="/managers/:id" element={<ManagerDetail />} />
+          <Route path="/history" element={<History />} />
           <Route path="*" element={<p>Page not found.</p>} />
         </Routes>
       </main>

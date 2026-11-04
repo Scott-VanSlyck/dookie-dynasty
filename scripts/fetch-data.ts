@@ -184,10 +184,38 @@ async function fetchValueHistory() {
   }
 }
 
+// ---------- FantasyCalc (market values from real trades, today only) ----------
+// FantasyCalc only publishes current values, so we keep our own history: one snapshot per day,
+// stored in an archive that the site publishes (public/data/fc-archive.json). Each run starts from
+// the live site's copy, so the history survives even if the GitHub Actions cache is cleared.
+
+const FC_URL = 'https://api.fantasycalc.com/values/current?isDynasty=true&numQbs=2&numTeams=12&ppr=1'
+const SITE_ARCHIVE_URL = 'https://scott-vanslyck.github.io/dookie-dynasty/data/fc-archive.json'
+
+async function fetchFantasyCalc() {
+  console.log('FantasyCalc: current values')
+  const dir = join(RAW, 'fc')
+  const published = await get(SITE_ARCHIVE_URL).catch(() => null)
+  if (published?.snapshots) save(join(dir, 'published-archive.json'), published)
+
+  const list = await get(FC_URL).catch((e: Error) => (console.log(`  skipped: ${e.message}`), null))
+  if (!Array.isArray(list)) return
+  const players: Record<string, number> = {}
+  const picks: Record<string, number> = {}
+  for (const row of list) {
+    if (row.player?.position === 'PICK') picks[row.player.name] = row.value
+    else if (row.player?.sleeperId) players[row.player.sleeperId] = row.value
+  }
+  const date = new Date().toISOString().slice(0, 10)
+  save(join(dir, 'daily', `${date}.json`), { date, players, picks })
+  console.log(`  ${Object.keys(players).length} players, ${Object.keys(picks).length} picks saved for ${date}` + (published ? `; ${published.snapshots.length} earlier days from the live site` : ''))
+}
+
 // ---------- main ----------
 
 const started = Date.now()
 await fetchSleeper()
 await fetchValueHistory()
+await fetchFantasyCalc()
 console.log(`Done in ${((Date.now() - started) / 1000).toFixed(1)}s. Raw data is in data/raw/. Next: node scripts/build-data.ts`)
 

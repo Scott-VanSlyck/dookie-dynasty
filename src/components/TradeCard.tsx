@@ -1,6 +1,6 @@
 import { Link } from 'react-router'
 import { formatDate, headshot, managerName, pickLabel, pickOriginalOwner, type Data, type Trade } from '../data'
-import { todayVerdicts, type Verdict } from '../rewind'
+import { fcVerdict, todayVerdicts, type Verdict } from '../rewind'
 import ManagerLink from './ManagerLink'
 
 function Pill({ data, trade, v, what }: { data: Data; trade: Trade; v: Verdict; what: string }) {
@@ -24,6 +24,7 @@ function Pill({ data, trade, v, what }: { data: Data; trade: Trade; v: Verdict; 
 
 export default function TradeCard({ data, trade }: { data: Data; trade: Trade }) {
   const v = todayVerdicts(data, trade)
+  const fc = fcVerdict(data, trade)
   return (
     <article className="trade">
       <header>
@@ -33,7 +34,8 @@ export default function TradeCard({ data, trade }: { data: Data; trade: Trade })
         </span>
       </header>
       <Link to={`/trades/${trade.id}`} className="verdict-strip">
-        <Pill data={data} trade={trade} v={v.value} what="Value today" />
+        <Pill data={data} trade={trade} v={v.value} what="DynastyProcess" />
+        {fc && <Pill data={data} trade={trade} v={fc} what="FantasyCalc" />}
         <Pill data={data} trade={trade} v={v.points} what="Points so far" />
         <span className="rewind-link">Rewind →</span>
       </Link>

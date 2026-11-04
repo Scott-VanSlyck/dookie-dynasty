@@ -8,7 +8,7 @@
 //   values.json  - weekly superflex trade value history for every traded asset
 //   scores.json  - weekly points for every roster (starters and bench), every season
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dirname, '..')
@@ -357,6 +357,27 @@ dates.forEach((date, i) => {
   pickTables.push(picks)
 })
 
+// TE premium: this league scores TEs at 1.5 PPR, but DynastyProcess values are for standard superflex
+// (and run well below the trade market for TEs). Boost every TE's value by this factor.
+const TE_PREMIUM = 1.25
+for (const [pid, series] of Object.entries(playerSeries)) {
+  if (sleeperPlayers[pid]?.pos === 'TE') playerSeries[pid] = series.map((v) => Math.round(v * TE_PREMIUM))
+}
+
+// DynastyProcess has short-lived glitches (e.g. 2nd-round picks worth ~5x for most of February 2025,
+// or a player missing from one week's file). Replace any value more than 2x away from the median of the
+// surrounding 13 weeks. Real moves persist, so they win the median and are kept; the latest few weeks
+// (with no "after" to compare against) are left alone.
+function smooth(series: number[]) {
+  return series.map((v, i) => {
+    if (i < 3 || i > series.length - 4) return v
+    const around = [...series.slice(Math.max(0, i - 6), i), ...series.slice(i + 1, i + 7)].sort((a, b) => a - b)
+    const median = around[around.length >> 1]
+    return median >= 50 && (v > 2 * median || v < median / 2) ? median : v
+  })
+}
+for (const pid of Object.keys(playerSeries)) playerSeries[pid] = smooth(playerSeries[pid])
+
 // Value of a pick on a given snapshot, before it has been used.
 // Because of the draft lottery, a pick is valued by its projected tier (Early 1-4, Mid 5-8, Late 9-12),
 // never its exact slot, and only once the previous season is over (Jan 10); before that it's a Mid pick.
@@ -380,8 +401,50 @@ function pickValue(table: Map<string, number>, date: string, a: { season: string
 
 const pickSeries: Record<string, number[]> = {}
 for (const [key, a] of pickAssets) {
-  pickSeries[key] = dates.map((date, i) =>
-    a.playerId && a.draftDate && date >= a.draftDate ? playerSeries[a.playerId]?.[i] ?? 0 : pickValue(pickTables[i], date, a),
+  pickSeries[key] = smooth(
+    dates.map((date, i) =>
+      a.playerId && a.draftDate && date >= a.draftDate ? playerSeries[a.playerId]?.[i] ?? 0 : pickValue(pickTables[i], date, a),
+    ),
+  )
+}
+
+// ---------- FantasyCalc history (our own daily snapshots, see fetch-data.ts) ----------
+
+interface FcSnapshot {
+  date: string
+  players: Record<string, number>
+  picks: Record<string, number>
+}
+const fcByDate = new Map<string, FcSnapshot>()
+const fcPublished = join(RAW, 'fc', 'published-archive.json')
+if (existsSync(fcPublished)) for (const s of load('fc/published-archive.json').snapshots ?? []) fcByDate.set(s.date, s)
+const fcDaily = join(RAW, 'fc', 'daily')
+if (existsSync(fcDaily)) for (const f of readdirSync(fcDaily)) if (f.endsWith('.json')) {
+  const s: FcSnapshot = load(`fc/daily/${f}`)
+  fcByDate.set(s.date, s)
+}
+const fcSnapshots = [...fcByDate.values()].sort((a, b) => a.date.localeCompare(b.date))
+const fcDates = fcSnapshots.map((s) => s.date)
+
+const fcPlayers: Record<string, number[]> = {}
+for (const pid of referencedPlayers) {
+  const series = fcSnapshots.map((s) => s.players[pid] ?? 0)
+  if (series.some((v) => v > 0)) fcPlayers[pid] = series
+}
+
+// FantasyCalc names picks "2027 1st (Early)", "2027 1st", ...
+function fcPickValue(table: Record<string, number>, date: string, a: PickAsset) {
+  const rd = ordinal(a.round)
+  const orderKnown = a.projSlot != null && date >= `${a.season}-01-10`
+  const tier = !orderKnown ? 'Mid' : a.projSlot! <= 4 ? 'Early' : a.projSlot! <= 8 ? 'Mid' : 'Late'
+  for (const name of [`${a.season} ${rd} (${tier})`, `${a.season} ${rd}`]) if (table[name] != null) return table[name]
+  const years = Object.keys(table).filter((k) => new RegExp(`^\\d{4} ${rd}$`).test(k)).sort()
+  return years.length ? table[years.at(-1)!] : 0
+}
+const fcPicks: Record<string, number[]> = {}
+for (const [key, a] of pickAssets) {
+  fcPicks[key] = fcSnapshots.map((s, i) =>
+    a.playerId && a.draftDate && s.date >= a.draftDate ? fcPlayers[a.playerId]?.[i] ?? 0 : fcPickValue(s.picks, s.date, a),
   )
 }
 
@@ -424,7 +487,10 @@ write('values.json', {
   dates,
   players: playerSeries,
   picks: Object.fromEntries([...pickAssets].map(([k, a]) => [k, { ...a, values: pickSeries[k] }])),
+  tePremium: TE_PREMIUM,
+  fc: { dates: fcDates, players: fcPlayers, picks: fcPicks },
 })
+write('fc-archive.json', { source: 'https://api.fantasycalc.com (superflex, 12 teams, PPR)', snapshots: fcSnapshots })
 write('scores.json', scores)
 
 // ---------- Report ----------

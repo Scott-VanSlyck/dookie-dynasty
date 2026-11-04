@@ -2,7 +2,7 @@ import { Link, useParams } from 'react-router'
 import ManagerLink from '../components/ManagerLink'
 import ValueChart from '../components/ValueChart'
 import { formatDate, headshot, managerName, pickLabel, pickOriginalOwner, useData, type Data, type Trade, type TradeSide } from '../data'
-import { peakSince, pickSeries, playerPoints, rewind, snapshotIndex, today, valueHistory, type Verdict } from '../rewind'
+import { fcPickToday, fcPlayerToday, fcVerdict, peakSince, pickSeries, playerPoints, rewind, snapshotIndex, today, valueHistory, type Verdict } from '../rewind'
 
 function VerdictText({ data, trade, v }: { data: Data; trade: Trade; v: Verdict }) {
   if (v.winner == null) return <span className="muted">{v.label}</span>
@@ -18,7 +18,7 @@ function AssetRows({ data, trade, side }: { data: Data; trade: Trade; side: Trad
   const now = today(data)
   const i0 = snapshotIndex(data, trade.date)
   const iN = data.values.dates.length - 1
-  const rows: { key: string; icon: string | null; pos: string; name: string; note?: string; v0: number; vN: number; peak: { value: number; date: string }; pts: number | null; left: string | null }[] = []
+  const rows: { key: string; icon: string | null; pos: string; name: string; note?: string; v0: number; vN: number; peak: { value: number; date: string }; pts: number | null; left: string | null; fc: number | null }[] = []
 
   for (const pid of side.players) {
     const series = data.values.players[pid]
@@ -33,6 +33,7 @@ function AssetRows({ data, trade, side }: { data: Data; trade: Trade; side: Trad
       peak: peakSince(data, series, trade.date),
       pts: playerPoints(data, side, pid, now),
       left: side.tenure[pid]?.[1] ?? null,
+      fc: fcPlayerToday(data, pid),
     })
   }
   for (const key of side.picks) {
@@ -53,6 +54,7 @@ function AssetRows({ data, trade, side }: { data: Data; trade: Trade; side: Trad
       peak: peakSince(data, pickSeries(data, key, side.rosterId), trade.date),
       pts: counted ? playerPoints(data, side, pick.playerId!, now) : null,
       left: counted ? side.tenure[pick.playerId!][1] : null,
+      fc: fcPickToday(data, key, side.rosterId),
     })
   }
 
@@ -63,6 +65,7 @@ function AssetRows({ data, trade, side }: { data: Data; trade: Trade; side: Trad
           <th>Asset</th>
           <th className="num">At trade</th>
           <th className="num">Today</th>
+          <th className="num" title="Today's value from FantasyCalc, built from real trades">FantasyCalc</th>
           <th className="num">Peak</th>
           <th className="num">Pts for team</th>
         </tr>
@@ -91,6 +94,7 @@ function AssetRows({ data, trade, side }: { data: Data; trade: Trade; side: Trad
             </td>
             <td className="num">{r.v0.toLocaleString()}</td>
             <td className="num">{r.vN.toLocaleString()}</td>
+            <td className="num muted">{r.fc == null ? '-' : r.fc.toLocaleString()}</td>
             <td className="num">
               {r.peak.value.toLocaleString()}
               <span className="muted small">
@@ -103,7 +107,7 @@ function AssetRows({ data, trade, side }: { data: Data; trade: Trade; side: Trad
         ))}
         {side.faab > 0 && (
           <tr>
-            <td colSpan={5}>
+            <td colSpan={6}>
               <div className="asset">
                 <span className="pick-icon">$</span>
                 <span className="pos pos-FAAB">FAAB</span>
@@ -129,6 +133,7 @@ export default function TradeDetail() {
   const names = trade.sides.map((s) => managerName(data, s.userId))
   const history = valueHistory(data, trade)
   const now = r.checkpoints.find((c) => c.key === 'today')!
+  const fc = fcVerdict(data, trade)
 
   return (
     <>
@@ -149,14 +154,26 @@ export default function TradeDetail() {
 
       <div className="hero-verdicts">
         <div>
-          <span className="muted small">Winner today, by value</span>
+          <span className="muted small">Winner today, by value (DynastyProcess)</span>
           <VerdictText data={data} trade={trade} v={now.value} />
         </div>
+        {fc && (
+          <div>
+            <span className="muted small">Winner today, by FantasyCalc</span>
+            <VerdictText data={data} trade={trade} v={fc} />
+            <span className="muted small">
+              {fc.totals.map((t, i) => `${names[i]} ${t.toLocaleString()}`).join(' · ')}
+            </span>
+          </div>
+        )}
         <div>
           <span className="muted small">Winner so far, by points scored</span>
           <VerdictText data={data} trade={trade} v={now.points} />
         </div>
       </div>
+      {fc && fc.winner !== now.value.winner && (
+        <p className="muted small">The two value sources disagree on this one.</p>
+      )}
 
       <h2>Rewind</h2>
       <div className="table-scroll">
@@ -234,9 +251,12 @@ export default function TradeDetail() {
 
       <p className="muted small how">
         <strong>How this works.</strong> Value is the DynastyProcess superflex trade value of everything a side received,
-        on that date. Picks count at a typical value for their round until the draft order is set, then at their slot, then as
-        the player drafted. Points are what those players scored in this team's starting lineup after the trade, until they
-        left the team. Under 10% apart counts as even.
+        on that date, with TEs boosted {Math.round((data.values.tePremium - 1) * 100)}% for this league's TE premium and
+        short-lived glitches in their history smoothed out. Picks count as an early, mid or late pick in their round
+        (because of the draft lottery), then as the player drafted, but only for the team that made the pick; a team that
+        traded the pick away keeps its value from draft day. FantasyCalc is a second opinion built from real trades; we
+        started saving it daily in November 2026, so it only covers today for now. Points are what those players scored in
+        this team's starting lineup after the trade, until they left the team. Under 10% apart counts as even.
       </p>
     </>
   )

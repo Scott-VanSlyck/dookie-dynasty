@@ -174,6 +174,38 @@ export function todayVerdicts(data: Data, trade: Trade) {
   return { scores, value: verdict(scores.map((s) => s.value), 'value', trade), points: verdict(scores.map((s) => s.points), 'points', trade) }
 }
 
+// ---------- FantasyCalc second opinion (today only, until our own history builds up) ----------
+
+export function fcPlayerToday(data: Data, pid: string): number | null {
+  const fc = data.values.fc
+  if (!fc?.dates.length) return null
+  return fc.players[pid]?.at(-1) ?? 0
+}
+
+export function fcPickToday(data: Data, key: string, rosterId: number): number | null {
+  const fc = data.values.fc
+  if (!fc?.dates.length) return null
+  const pick = data.values.picks[key]
+  // A pick this team traded away before the draft keeps its frozen pre-draft value (FantasyCalc
+  // has no history that far back, so the DynastyProcess value is used).
+  if (pick?.playerId && pick.draftDate && pick.draftedBy !== rosterId) return pickSeries(data, key, rosterId).at(-1) ?? 0
+  return fc.picks[key]?.at(-1) ?? 0
+}
+
+export function fcSideValue(data: Data, side: TradeSide): number | null {
+  if (!data.values.fc?.dates.length) return null
+  let total = 0
+  for (const pid of side.players) total += fcPlayerToday(data, pid) ?? 0
+  for (const key of side.picks) total += fcPickToday(data, key, side.rosterId) ?? 0
+  return total
+}
+
+export function fcVerdict(data: Data, trade: Trade): (Verdict & { totals: number[] }) | null {
+  const totals = trade.sides.map((s) => fcSideValue(data, s))
+  if (totals.some((t) => t == null)) return null
+  return { ...verdict(totals as number[], 'value', trade), totals: totals as number[] }
+}
+
 // Numbers for sorting the trade list.
 export function tradeGaps(data: Data, trade: Trade) {
   const now = todayVerdicts(data, trade)

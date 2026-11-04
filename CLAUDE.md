@@ -42,8 +42,16 @@ TE premium every season (rec 1 + bonus_rec_te 0.5). 2023 had 0.5 first-down bonu
 2024+ use rec_fd 0.25 / rush_fd 0.5 and 2/4 yardage bonuses; 3 WR starters from 2024. Points in `scores.json` come from
 Sleeper already scored with that season's rules. DynastyProcess values are generic superflex (no TE premium).
 
-### Known data issue
-DynastyProcess history is noisy each Jan–Mar for rookies and picks (e.g. 2025 2nd-round picks ~5x for Feb 7–28, 2025).
+### Value adjustments and second source
+- DynastyProcess history is noisy each Jan–Mar for rookies and picks (e.g. 2025 2nd-round picks ~5x for Feb 7–28, 2025).
+  `smooth()` in build-data replaces values >2x off the median of the surrounding 13 weeks (skips the last 3 weeks).
+- `TE_PREMIUM = 1.25` multiplies DynastyProcess TE values (league is 1.5 PPR for TEs). DP runs far below the trade market
+  for TEs (top-24 TEs ~3.7x lower than FantasyCalc in Nov 2026), so this is conservative; tune it there.
+- FantasyCalc (`api.fantasycalc.com/values/current?isDynasty=true&numQbs=2&numTeams=12&ppr=1`, has sleeperId, ignores TE
+  premium) only serves today's values. `fetch-data.ts` saves one snapshot per day to `data/raw/fc/daily/` and pulls the
+  previously published `fc-archive.json` from the live site, so history accumulates without committing data. build-data
+  writes `public/data/fc-archive.json` (full, not loaded by the site) and `values.json.fc` (series for traded assets).
+  Shown on the site as a "today" second opinion (`fcVerdict()` in rewind.ts); not used for past checkpoints yet.
 
 ## Trade rewind checkpoints
 Day of trade · End of that season (after the championship week) · 1 year later · Today, plus each asset's peak value since the trade.

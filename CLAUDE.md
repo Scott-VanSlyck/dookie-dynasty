@@ -1,4 +1,4 @@
-# Dookie Dynasty site
+﻿# Dookie Dynasty site
 
 Website for a 12-team superflex dynasty fantasy football league on Sleeper.
 Main feature: **trade rewind**, which judges every trade at several checkpoints (see below).
@@ -8,16 +8,16 @@ Main feature: **trade rewind**, which judges every trade at several checkpoints 
 - Earlier seasons: follow `previous_league_id` (2025 `1180090570030120960`, 2024 `1048300314966831104`, 2023 `958843674790510592`)
 - 2023 draft was the 19-round startup; 2024+ are 3-round linear rookie drafts.
 - Scoring: PPR, 4-pt pass TD, +0.5 TE reception bonus. Lineup: QB, 2 RB, 2 WR, TE, 2 FLEX, SUPER_FLEX.
-- `roster_id` → manager mapping can change between seasons (13 managers have held the 12 teams); always resolve per season via `rosterOwners`.
+- `roster_id` â†’ manager mapping can change between seasons (13 managers have held the 12 teams); always resolve per season via `rosterOwners`.
 
 ## Data pipeline
 `npm run data` = `scripts/fetch-data.ts` (downloads to `data/raw/`, gitignored, cached) then
 `scripts/build-data.ts` (writes `public/data/*.json`, committed; the site reads these).
-- Sleeper API (free, no key): league, users, rosters, transactions (weeks 0–18), matchups, drafts + picks.
+- Sleeper API (free, no key): league, users, rosters, transactions (weeks 0â€“18), matchups, drafts + picks.
   `/players/nfl` is fetched at most once a day.
 - Trade values: DynastyProcess `files/values.csv` (players **and** picks), one snapshot per weekly commit
   in the dynastyprocess/data git history since 2023-06. Uses `value_2qb` (superflex).
-  `fp_id` → Sleeper ID via `db_playerids.csv`, falling back to name + position.
+  `fp_id` â†’ Sleeper ID via `db_playerids.csv`, falling back to name + position.
 
 ### Output files (public/data/)
 - `league.json`: seasons (lastScoredWeek, playoffWeekStart, weekDates, draft), managers, rosterOwners
@@ -32,17 +32,23 @@ After that, its exact slot ("2025 Pick 1.11"), falling back to its Early/Mid/Lat
 Picks further out than DynastyProcess lists use the furthest year it has.
 
 ## Trade rewind checkpoints
-Day of trade · End of that season (after the championship week) · 1 year later · Today, plus each asset's peak value since the trade.
+Day of trade Â· End of that season (after the championship week) Â· 1 year later Â· Today, plus each asset's peak value since the trade.
 Each checkpoint shows:
 - **Value:** sum of each side's superflex value on that date.
 - **Production:** starter points scored for the receiving roster between the trade and that date.
 FAAB is shown but not scored. Raw sums for now; consider a consolidation ("best player") adjustment later.
 
 ## Build order
-1. Setup ✅  2. Data pipeline ✅  3. Trade list page  4. Trade rewind scoring
+1. Setup âœ…  2. Data pipeline âœ…  3. Trade list page  4. Trade rewind scoring
 5. Manager pages  6. League history  7. Hosting + weekly auto-refresh
 
 ## Dev
 - Node.js is at `C:\Program Files\nodejs` (may need adding to PATH in a fresh shell). Node 26 runs the `.ts` scripts directly.
 - `npm run dev` starts the site at http://localhost:5173. `npm run build` checks types and builds.
 - React + TypeScript + Vite. GitHub: Scott-VanSlyck/dookie-dynasty.
+
+## Site structure
+- Hash routing (react-router `HashRouter`) so it works on GitHub Pages. Pages in `src/pages/`, shared pieces in `src/components/`.
+- `src/data.ts` loads `public/data/*.json` once and holds the types + name helpers.
+- Trade list filters live in the URL (`?season=&manager=&q=&sort=`) so filtered views can be shared.
+

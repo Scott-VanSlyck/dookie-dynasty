@@ -1,3 +1,4 @@
+import { useTitle } from '../useTitle'
 import { Link, useParams } from 'react-router'
 import ManagerLink from '../components/ManagerLink'
 import ValueChart from '../components/ValueChart'
@@ -9,7 +10,7 @@ function VerdictText({ data, trade, v }: { data: Data; trade: Trade; v: Verdict 
   return (
     <span>
       <span className="dot" style={{ background: `var(--series-${v.winner + 1})` }} />
-      <strong>{managerName(data, trade.sides[v.winner].userId)}</strong> <span className="muted">· {v.label}</span>
+      <strong>{managerName(data, trade.sides[v.winner].userId)}</strong> <span className="muted verdict-label">· {v.label}</span>
     </span>
   )
 }
@@ -65,8 +66,8 @@ function AssetRows({ data, trade, side }: { data: Data; trade: Trade; side: Trad
           <th>Asset</th>
           <th className="num">At trade</th>
           <th className="num">Today</th>
-          <th className="num" title="Today's value from FantasyCalc, built from real trades">FantasyCalc</th>
-          <th className="num">Peak</th>
+          <th className="num hide-sm" title="Today's value from FantasyCalc, built from real trades">FantasyCalc</th>
+          <th className="num hide-sm">Peak</th>
           <th className="num">Pts for team</th>
         </tr>
       </thead>
@@ -94,8 +95,8 @@ function AssetRows({ data, trade, side }: { data: Data; trade: Trade; side: Trad
             </td>
             <td className="num">{r.v0.toLocaleString()}</td>
             <td className="num">{r.vN.toLocaleString()}</td>
-            <td className="num muted">{r.fc == null ? '-' : r.fc.toLocaleString()}</td>
-            <td className="num">
+            <td className="num muted hide-sm">{r.fc == null ? '-' : r.fc.toLocaleString()}</td>
+            <td className="num hide-sm">
               {r.peak.value.toLocaleString()}
               <span className="muted small">
                 <br />
@@ -124,6 +125,8 @@ function AssetRows({ data, trade, side }: { data: Data; trade: Trade; side: Trad
 export default function TradeDetail() {
   const { id } = useParams()
   const { data, error } = useData()
+  const titleTrade = data?.trades.find((t) => t.id === id)
+  useTitle(titleTrade ? `Trade: ${titleTrade.sides.map((s) => managerName(data!, s.userId)).join(' × ')}` : 'Trade')
   if (error) return <p className="error">{error}</p>
   if (!data) return <p className="muted">Loading…</p>
   const trade = data.trades.find((t) => t.id === id)
@@ -187,8 +190,8 @@ export default function TradeDetail() {
                   {n}
                 </th>
               ))}
-              <th>Value winner</th>
-              <th>Points winner</th>
+              <th className="hide-sm">Value winner</th>
+              <th className="hide-sm">Points winner</th>
             </tr>
           </thead>
           <tbody>
@@ -205,17 +208,19 @@ export default function TradeDetail() {
                   <td key={i} className="num">
                     {cp.reached ? (
                       <>
-                        {s.value.toLocaleString()} <span className="muted small">value</span>
+                        <span className={cp.value.winner === i ? 'gain strong' : ''}>{s.value.toLocaleString()}</span>{' '}
+                        <span className="muted small">value</span>
                         <br />
-                        {s.points.toFixed(1)} <span className="muted small">pts</span>
+                        <span className={cp.key !== 'trade' && cp.points.winner === i ? 'gain strong' : ''}>{s.points.toFixed(1)}</span>{' '}
+                        <span className="muted small">pts</span>
                       </>
                     ) : (
                       <span className="muted">-</span>
                     )}
                   </td>
                 ))}
-                <td>{cp.reached ? <VerdictText data={data} trade={trade} v={cp.value} /> : <span className="muted">Not yet</span>}</td>
-                <td>
+                <td className="hide-sm">{cp.reached ? <VerdictText data={data} trade={trade} v={cp.value} /> : <span className="muted">Not yet</span>}</td>
+                <td className="hide-sm">
                   {!cp.reached ? (
                     <span className="muted">Not yet</span>
                   ) : cp.key === 'trade' ? (

@@ -1,3 +1,4 @@
+import { useTitle } from '../useTitle'
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router'
 import ManagerLink, { Avatar } from '../components/ManagerLink'
@@ -55,8 +56,8 @@ function Standings({ data, season }: { data: Data; season: Season }) {
             <th>Team</th>
             <th className="num">Record</th>
             <th className="num">Points for</th>
-            <th className="num">Points against</th>
-            <th className="num" title="Points scored as a share of the best possible lineup's points">Lineup %</th>
+            <th className="num hide-sm">Points against</th>
+            <th className="num hide-sm" title="Points scored as a share of the best possible lineup's points">Lineup %</th>
             <th>Finish</th>
           </tr>
         </thead>
@@ -72,7 +73,7 @@ function Standings({ data, season }: { data: Data; season: Season }) {
                     <span>
                       <ManagerLink data={data} userId={t.userId} />
                       {t.teamName && (
-                        <span className="muted small">
+                        <span className="muted small hide-sm">
                           <br />
                           {t.teamName}
                         </span>
@@ -85,8 +86,8 @@ function Standings({ data, season }: { data: Data; season: Season }) {
                   {t.ties ? `-${t.ties}` : ''}
                 </td>
                 <td className="num">{t.pf.toFixed(2)}</td>
-                <td className="num">{t.pa.toFixed(2)}</td>
-                <td className="num">{t.maxPf ? `${((t.pf / t.maxPf) * 100).toFixed(1)}%` : '-'}</td>
+                <td className="num hide-sm">{t.pa.toFixed(2)}</td>
+                <td className="num hide-sm">{t.maxPf ? `${((t.pf / t.maxPf) * 100).toFixed(1)}%` : '-'}</td>
                 <td>{f ? <span className={`finish finish-${f.split(' ')[0].toLowerCase()}`}>{f === 'Champion' ? '🏆 Champion' : f}</span> : <span className="muted">-</span>}</td>
               </tr>
             )
@@ -100,6 +101,7 @@ function Standings({ data, season }: { data: Data; season: Season }) {
 export default function History() {
   const { data, error } = useData()
   const [params, setParams] = useSearchParams()
+  useTitle('League history')
   const set = (key: string, value: string) => {
     const next = new URLSearchParams(params)
     next.set(key, value)
@@ -152,11 +154,11 @@ export default function History() {
               <th>Manager</th>
               <th className="num">Seasons</th>
               <th className="num">Titles</th>
-              <th className="num">Finals</th>
+              <th className="num hide-sm">Finals</th>
               <th className="num">Playoffs</th>
               <th className="num">Record</th>
               <th className="num">Win %</th>
-              <th className="num">Points / season</th>
+              <th className="num hide-sm">Points / season</th>
               <th className="num">Lineup %</th>
             </tr>
           </thead>
@@ -171,14 +173,14 @@ export default function History() {
                 </td>
                 <td className="num">{r.seasons}</td>
                 <td className="num">{r.titles ? '🏆'.repeat(r.titles) : '-'}</td>
-                <td className="num">{r.finals}</td>
+                <td className="num hide-sm">{r.finals}</td>
                 <td className="num">{r.playoffs}</td>
                 <td className="num">
                   {r.wins}-{r.losses}
                   {r.ties ? `-${r.ties}` : ''}
                 </td>
                 <td className="num">{pct(r.wins, r.losses, r.ties)}</td>
-                <td className="num">{fmt(r.pf / r.seasons)}</td>
+                <td className="num hide-sm">{fmt(r.pf / r.seasons)}</td>
                 <td className="num">{r.maxPf ? `${((r.pf / r.maxPf) * 100).toFixed(1)}%` : '-'}</td>
               </tr>
             ))}

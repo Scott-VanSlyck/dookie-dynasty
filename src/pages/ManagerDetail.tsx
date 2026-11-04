@@ -1,3 +1,4 @@
+import { useTitle } from '../useTitle'
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router'
 import ManagerLink, { Avatar } from '../components/ManagerLink'
@@ -49,6 +50,7 @@ export default function ManagerDetail() {
   const { id } = useParams()
   const { data, error } = useData()
   const stats = useMemo(() => (data && id && allManagerIds(data).includes(id) ? managerStats(data, id) : null), [data, id])
+  useTitle(stats?.name)
 
   if (error) return <p className="error">{error}</p>
   if (!data) return <p className="muted">Loading…</p>

@@ -326,6 +326,36 @@ for (const t of trades) {
   delete t.ms
 }
 
+// ---------- Rookie drafts (every season after the startup) ----------
+// For each pick: who made it, whose pick it originally was, and where Sleeper's draft order had
+// projected it (so lottery / draft-day moves show up).
+
+const drafts: any[] = []
+for (const season of seasonList.slice(1)) {
+  const draft = raw[season].drafts?.[0]
+  if (!draft || draft.status !== 'complete') continue
+  const origByPick = new Map<DraftedPick, number>()
+  for (const [key, pick] of resolveDraft(season)) origByPick.set(pick, +key.split('-')[1])
+  const picks = [...origByPick.keys()]
+    .sort((a: any, b: any) => a.pick_no - b.pick_no)
+    .map((p: any) => {
+      const orig = origByPick.get(p)!
+      referencedPlayers.add(p.player_id)
+      return {
+        round: p.round,
+        slot: p.draft_slot,
+        pickNo: p.pick_no,
+        rosterId: p.roster_id,
+        userId: rosterOwners[season][p.roster_id] ?? null,
+        origRosterId: orig,
+        origUserId: rosterOwners[season][orig] ?? null,
+        projSlot: pickSlot(season, orig),
+        playerId: p.player_id,
+      }
+    })
+  drafts.push({ season, date: draft.start_time ? isoDate(draft.start_time) : null, rounds: draft.settings.rounds, picks })
+}
+
 // ---------- Value history (DynastyProcess, superflex) ----------
 
 const idMap = new Map<string, string>() // fantasypros id -> sleeper id
@@ -561,6 +591,7 @@ for (const pid of referencedPlayers) {
 
 write('league.json', { name: raw[seasonList.at(-1)!].league.name, seasons, managers, rosterOwners, builtAt: new Date().toISOString() })
 write('trades.json', trades)
+write('drafts.json', drafts)
 write('players.json', players)
 write('values.json', {
   source: 'KeepTradeCut superflex (history via Dynasty Daddy), DynastyProcess where KTC has no value',

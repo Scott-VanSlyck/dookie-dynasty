@@ -102,6 +102,26 @@ export interface Data {
   players: Record<string, Player>
   values: Values
   scores: Record<string, Record<string, ScoreRow[]>>
+  drafts: Draft[]
+}
+
+export interface DraftPick {
+  round: number
+  slot: number
+  pickNo: number
+  rosterId: number // team that made the pick
+  userId: string | null
+  origRosterId: number // team the pick originally belonged to
+  origUserId: string | null
+  projSlot: number | null // where Sleeper's draft order had it before draft-day moves (lottery, swaps)
+  playerId: string
+}
+
+export interface Draft {
+  season: string
+  date: string | null
+  rounds: number
+  picks: DraftPick[]
 }
 
 let cache: Promise<Data> | null = null
@@ -119,7 +139,8 @@ export function loadData(): Promise<Data> {
     getJson<Record<string, Player>>('players.json'),
     getJson<Values>('values.json'),
     getJson<Data['scores']>('scores.json'),
-  ]).then(([league, trades, players, values, scores]) => ({ league, trades, players, values, scores }))
+    getJson<Draft[]>('drafts.json'),
+  ]).then(([league, trades, players, values, scores, drafts]) => ({ league, trades, players, values, scores, drafts }))
   return cache
 }
 

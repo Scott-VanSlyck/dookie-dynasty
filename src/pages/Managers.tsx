@@ -1,3 +1,4 @@
+import { useTitle } from '../useTitle'
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import ManagerLink, { Avatar } from '../components/ManagerLink'
@@ -7,6 +8,7 @@ import { allManagerIds, managerStats, signed } from '../managers'
 export default function Managers() {
   const { data, error } = useData()
   const navigate = useNavigate()
+  useTitle('Managers')
   const rows = useMemo(() => {
     if (!data) return []
     return allManagerIds(data)
@@ -29,10 +31,10 @@ export default function Managers() {
               <th>Manager</th>
               <th className="num">Trades</th>
               <th className="num" title="Wins, losses and even trades by value today">Record (value)</th>
-              <th className="num" title="Wins, losses and even trades by points scored since the trade">Record (points)</th>
+              <th className="num hide-sm" title="Wins, losses and even trades by points scored since the trade">Record (points)</th>
               <th className="num" title="Sum over every trade of: value received minus value given, as of today">Net value</th>
-              <th className="num" title="Sum over every trade of: points scored by what you got minus points scored by what you gave">Net points</th>
-              <th>Top partner</th>
+              <th className="num hide-sm" title="Sum over every trade of: points scored by what you got minus points scored by what you gave">Net points</th>
+              <th className="hide-sm">Top partner</th>
             </tr>
           </thead>
           <tbody>
@@ -44,7 +46,7 @@ export default function Managers() {
                     <Avatar src={m.avatar} />
                     <span>
                       <ManagerLink data={data} userId={m.userId} />
-                      {m.team && <span className="muted small"><br />{m.team}</span>}
+                      {m.team && <span className="muted small hide-sm"><br />{m.team}</span>}
                     </span>
                   </div>
                 </td>
@@ -52,12 +54,12 @@ export default function Managers() {
                 <td className="num">
                   {m.record.win}-{m.record.loss}-{m.record.even}
                 </td>
-                <td className="num">
+                <td className="num hide-sm">
                   {m.pointsRecord.win}-{m.pointsRecord.loss}-{m.pointsRecord.even}
                 </td>
                 <td className={`num ${m.netValue > 0 ? 'gain' : m.netValue < 0 ? 'drop' : ''}`}>{signed(m.netValue)}</td>
-                <td className={`num ${m.netPoints > 0 ? 'gain' : m.netPoints < 0 ? 'drop' : ''}`}>{signed(m.netPoints, 1)}</td>
-                <td className="small">
+                <td className={`num hide-sm ${m.netPoints > 0 ? 'gain' : m.netPoints < 0 ? 'drop' : ''}`}>{signed(m.netPoints, 1)}</td>
+                <td className="small hide-sm">
                   {m.partners[0] ? (
                     <>
                       {managerName(data, m.partners[0].userId)} <span className="muted">({m.partners[0].count})</span>

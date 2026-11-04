@@ -102,6 +102,11 @@ FAAB is shown but not scored (trades where a side got only FAAB are labeled "FAA
   settings (`league.json` `seasons[].standings`, incl. `maxPf` for lineup %). Head-to-head counts real matchups only.
   Playoff places come from `winners_bracket` (`seasons[].playoffs`); Sleeper pre-fills a projected bracket, so ignore it
   until `lastScoredWeek >= playoffWeekStart`.
+- Home (`/`) is a dashboard: current standings, trade leaderboard, latest trades, biggest heists, last champion.
+- Drafts (`/drafts`, `drafts.json` from build-data): every rookie-draft pick with who made it, whose pick it was
+  (`origRosterId`), projected slot vs actual (draft-day/lottery moves), KTC value at draft and today, points for the drafter.
+- Phones: `.hide-sm` hides secondary table columns under 560px; the Rewind table marks winners in green instead of
+  showing the winner columns. Every page sets its tab title with `useTitle()`; `index.html` has link-preview meta tags.
 - Trade list filters live in the URL (`?season=&manager=&q=&sort=`) so filtered views can be shared.
 
 ## Dev

@@ -1,3 +1,4 @@
+import { useTitle } from '../useTitle'
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router'
 import TradeCard from '../components/TradeCard'
@@ -32,6 +33,7 @@ function searchText(data: Data, t: Trade) {
 export default function Trades() {
   const { data, error } = useData()
   const [params, setParams] = useSearchParams()
+  useTitle('Trades')
   const season = params.get('season') ?? ''
   const manager = params.get('manager') ?? ''
   const query = params.get('q') ?? ''

@@ -70,6 +70,8 @@ export interface PickAsset {
   season: string
   round: number
   orig: number
+  projSlot: number | null // slot from Sleeper's draft order, before the lottery
+  // slot: actual slot it was used at (after the draft)
   slot: number | null
   playerId: string | null
   draftedBy: number | null

@@ -26,10 +26,24 @@ Main feature: **trade rewind**, which judges every trade at several checkpoints 
 - `scores.json`: `scores[season][week] = [{rosterId, matchupId, points, starters{pid: pts}, bench{pid: pts}}]`
 - `players.json`: `{pid: {name, pos, team}}`
 
-### Pick valuation
-Before the draft order is known (before Jan 10 of the draft year), a pick is worth that round's "Mid" value.
-After that, its exact slot ("2025 Pick 1.11"), falling back to its Early/Mid/Late tier. Once drafted, it is worth the player picked.
-Picks further out than DynastyProcess lists use the furthest year it has.
+### Draft lottery and pick valuation
+- The league runs a **draft lottery and swaps picks on draft day**, so Sleeper's `draft_order` is only the projected
+  (pre-lottery) order. `resolveDraft()` in build-data matches each pick (season-round-origRoster) to a pick its owner going
+  into the draft actually made: owner at projected slot → owner anywhere in the round → leftovers by projected order.
+  Pick assets carry `projSlot` (projected), `slot` (actual), `draftedBy` (team that made the pick) and `playerId`.
+- Before the draft a pick is valued by tier only (Early 1-4 / Mid 5-8 / Late 9-12 of its projected slot, from Jan 10;
+  "Mid" before that), never the exact slot. DP lists the upcoming draft as exact slots, so tiers average those.
+- After the draft a pick is worth the drafted player **only for the team that made the pick**. A team that traded the
+  pick away keeps its last pre-draft value (`pickSeries()` in `src/rewind.ts`). Points follow the same rule.
+- Picks further out than DynastyProcess lists use the furthest year it has.
+
+### Scoring (from Sleeper, applied per season)
+TE premium every season (rec 1 + bonus_rec_te 0.5). 2023 had 0.5 first-down bonuses for RB/WR/TE and 3/5 yardage bonuses;
+2024+ use rec_fd 0.25 / rush_fd 0.5 and 2/4 yardage bonuses; 3 WR starters from 2024. Points in `scores.json` come from
+Sleeper already scored with that season's rules. DynastyProcess values are generic superflex (no TE premium).
+
+### Known data issue
+DynastyProcess history is noisy each Jan–Mar for rookies and picks (e.g. 2025 2nd-round picks ~5x for Feb 7–28, 2025).
 
 ## Trade rewind checkpoints
 Day of trade · End of that season (after the championship week) · 1 year later · Today, plus each asset's peak value since the trade.

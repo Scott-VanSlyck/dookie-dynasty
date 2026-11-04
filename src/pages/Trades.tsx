@@ -2,7 +2,18 @@ import { useMemo } from 'react'
 import { useSearchParams } from 'react-router'
 import TradeCard from '../components/TradeCard'
 import { managerName, useData, type Data, type Trade } from '../data'
-import { todayVerdicts } from '../rewind'
+import { tradeGaps } from '../rewind'
+
+type GapKey = keyof ReturnType<typeof tradeGaps>
+const SORTS: { id: string; label: string; key?: GapKey; ascending?: boolean }[] = [
+  { id: '', label: 'Newest first' },
+  { id: 'oldest', label: 'Oldest first' },
+  { id: 'lopsided', label: 'Biggest value gap today', key: 'valueToday' },
+  { id: 'gap-at-trade', label: 'Biggest value gap at trade time', key: 'valueAtTrade' },
+  { id: 'points', label: 'Biggest points gap', key: 'points' },
+  { id: 'swing', label: 'Biggest turnaround since the trade', key: 'swing' },
+  { id: 'even', label: 'Most even today', key: 'valueToday', ascending: true },
+]
 
 // Every name that appears in a trade (players, drafted players, managers), for searching.
 function searchText(data: Data, t: Trade) {
@@ -49,9 +60,11 @@ export default function Trades() {
         (!q || searchText(data, t).includes(q)),
     )
     if (sort === 'oldest') return list
-    if (sort === 'lopsided') {
-      const gap = new Map(list.map((t) => [t.id, todayVerdicts(data, t).value.gap]))
-      return [...list].sort((a, b) => gap.get(b.id)! - gap.get(a.id)!)
+    const option = SORTS.find((s) => s.id === sort && s.key)
+    if (option?.key) {
+      const gaps = new Map(list.map((t) => [t.id, tradeGaps(data, t)[option.key!]]))
+      const dir = option.ascending ? 1 : -1
+      return [...list].sort((a, b) => dir * (gaps.get(a.id)! - gaps.get(b.id)!))
     }
     return [...list].reverse()
   }, [data, season, manager, query, sort])
@@ -82,9 +95,11 @@ export default function Trades() {
           ))}
         </select>
         <select value={sort} onChange={(e) => set('sort', e.target.value)}>
-          <option value="">Newest first</option>
-          <option value="oldest">Oldest first</option>
-          <option value="lopsided">Biggest value gap today</option>
+          {SORTS.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.label}
+            </option>
+          ))}
         </select>
       </div>
       <p className="muted small">

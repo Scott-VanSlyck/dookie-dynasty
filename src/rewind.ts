@@ -76,14 +76,33 @@ export function playerValueAt(data: Data, pid: string, i: number) {
   return i < 0 ? 0 : data.values.players[pid]?.[i] ?? 0
 }
 
-export function pickValueAt(data: Data, key: string, i: number) {
-  return i < 0 ? 0 : data.values.picks[key]?.values[i] ?? 0
+// A pick's value history as seen by one team. Until the draft it's the pick's value. After the draft
+// it becomes the drafted player's value, but only for the team that actually made the pick; a team
+// that had traded the pick away keeps its last pre-draft value, so nobody is judged on a pick they didn't make.
+const seriesCache = new Map<string, number[]>()
+export function pickSeries(data: Data, key: string, rosterId: number): number[] {
+  const cacheKey = `${key}|${rosterId}`
+  const hit = seriesCache.get(cacheKey)
+  if (hit) return hit
+  const pick = data.values.picks[key]
+  let series = pick?.values ?? []
+  if (pick?.playerId && pick.draftDate && pick.draftedBy !== rosterId) {
+    const frozenAt = snapshotIndex(data, addDays(pick.draftDate, -1))
+    const frozen = frozenAt >= 0 ? pick.values[frozenAt] : 0
+    series = pick.values.map((v, i) => (data.values.dates[i] >= pick.draftDate! ? frozen : v))
+  }
+  seriesCache.set(cacheKey, series)
+  return series
+}
+
+export function pickValueAt(data: Data, key: string, i: number, rosterId: number) {
+  return i < 0 ? 0 : pickSeries(data, key, rosterId)[i] ?? 0
 }
 
 export function sideValueAt(data: Data, side: TradeSide, i: number) {
   let total = 0
   for (const pid of side.players) total += playerValueAt(data, pid, i)
-  for (const key of side.picks) total += pickValueAt(data, key, i)
+  for (const key of side.picks) total += pickValueAt(data, key, i, side.rosterId)
   return total
 }
 
@@ -153,6 +172,17 @@ export function todayVerdicts(data: Data, trade: Trade) {
   const now = today(data)
   const scores = trade.sides.map((s) => sideScore(data, s, now))
   return { scores, value: verdict(scores.map((s) => s.value), 'value', trade), points: verdict(scores.map((s) => s.points), 'points', trade) }
+}
+
+// Numbers for sorting the trade list.
+export function tradeGaps(data: Data, trade: Trade) {
+  const now = todayVerdicts(data, trade)
+  const atTrade = trade.sides.map((s) => sideScore(data, s, trade.date).value)
+  const gapAtTrade = verdict(atTrade, 'value', trade).gap
+  // Turnaround: how far the value difference between the two sides moved since the trade.
+  const diff = (vals: number[]) => (vals.length === 2 ? vals[0] - vals[1] : 0)
+  const swing = Math.abs(diff(now.scores.map((s) => s.value)) - diff(atTrade))
+  return { valueToday: now.value.gap, valueAtTrade: gapAtTrade, points: now.points.gap, swing }
 }
 
 // Highest value an asset reached after the trade, and when.

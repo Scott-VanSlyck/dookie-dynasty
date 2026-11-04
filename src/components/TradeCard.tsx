@@ -11,7 +11,11 @@ function Pill({ data, trade, v, what }: { data: Data; trade: Trade; v: Verdict; 
         v.label
       ) : (
         <>
-          <strong>{managerName(data, trade.sides[v.winner].userId)}</strong> <span className="muted">({v.label.toLowerCase()})</span>
+          <strong>{managerName(data, trade.sides[v.winner].userId)}</strong>{' '}
+          <span className="muted">
+            ({v.label.toLowerCase()}, +{Math.round(v.gap).toLocaleString()}
+            {what.startsWith('Points') ? ' pts' : ''})
+          </span>
         </>
       )}
     </span>

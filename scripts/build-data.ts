@@ -149,9 +149,12 @@ function buildPlayoffs(bracket: any[]) {
 }
 
 // ---------- Draft pick resolution ----------
-// A traded pick is identified by (season, round, original roster). Once that season's
-// draft order is set we know its slot; once the draft happens we know the player.
+// A traded pick is identified by (season, round, original roster). Sleeper's draft order gives a
+// *projected* slot, but this league runs a draft lottery and swaps picks on draft day, so the slot
+// a pick ends up at (and the player taken with it) comes from the draft results themselves:
+// the team that owned the pick going into the draft is matched to a pick it actually made.
 
+// Projected slot from Sleeper's draft order (pre-lottery).
 function pickSlot(season: string, origRosterId: number): number | null {
   const r = raw[season]
   const draft = r?.drafts?.[0]
@@ -164,13 +167,60 @@ function pickSlot(season: string, origRosterId: number): number | null {
   return owner && draft.draft_order?.[owner] ? draft.draft_order[owner] : null
 }
 
-// The draft pick made with this slot: { player_id, roster_id (team that made the pick) }.
-function draftedPlayer(season: string, round: number, slot: number | null): { player_id: string; roster_id: number } | null {
+interface DraftedPick {
+  player_id: string
+  roster_id: number // team that actually made the pick
+  draft_slot: number
+}
+
+const allTradesByTime = seasonList
+  .flatMap((s) => raw[s].transactions)
+  .filter((t: any) => t.type === 'trade' && t.status === 'complete')
+  .sort((a: any, b: any) => (a.status_updated ?? a.created) - (b.status_updated ?? b.created))
+
+const draftResolution = new Map<string, Map<string, DraftedPick>>() // season -> "round-origRoster" -> pick made
+
+function resolveDraft(season: string): Map<string, DraftedPick> {
+  if (draftResolution.has(season)) return draftResolution.get(season)!
+  const result = new Map<string, DraftedPick>()
+  draftResolution.set(season, result)
   const r = raw[season]
   const draft = r?.drafts?.[0]
-  if (!draft || slot == null || draft.status !== 'complete') return null
-  const picks: any[] = r.draftPicks[draft.draft_id] ?? []
-  return picks.find((p) => p.round === round && p.draft_slot === slot) ?? null
+  if (!draft || draft.status !== 'complete') return result
+  const picks: any[] = (r.draftPicks[draft.draft_id] ?? []).filter((p: any) => p.player_id)
+
+  // Who owned each pick going into the draft, from every league trade before draft day.
+  const owner = new Map<string, number>()
+  for (const t of allTradesByTime) {
+    if ((t.status_updated ?? t.created) >= draft.start_time) break
+    for (const p of t.draft_picks ?? []) if (p.season === season) owner.set(`${p.round}-${p.roster_id}`, p.owner_id)
+  }
+
+  const rounds = [...new Set(picks.map((p) => p.round))]
+  const origs: number[] = r.rosters.map((ro: any) => ro.roster_id)
+  for (const round of rounds) {
+    const open = picks.filter((p) => p.round === round).sort((a, b) => a.draft_slot - b.draft_slot)
+    const keys = origs
+      .map((orig) => ({ key: `${round}-${orig}`, owner: owner.get(`${round}-${orig}`) ?? orig, proj: pickSlot(season, orig) ?? 99 }))
+      .sort((a, b) => a.proj - b.proj)
+    const take = (k: (typeof keys)[number], match: (p: any) => boolean) => {
+      const i = open.findIndex(match)
+      if (i < 0) return false
+      result.set(k.key, open[i])
+      open.splice(i, 1)
+      return true
+    }
+    // 1) owner picked at the projected slot; 2) owner picked somewhere else (lottery);
+    // 3) anything left (picks moved during the draft itself) by projected order.
+    let rest = keys.filter((k) => !take(k, (p) => p.roster_id === k.owner && p.draft_slot === k.proj))
+    rest = rest.filter((k) => !take(k, (p) => p.roster_id === k.owner))
+    rest.forEach((k) => take(k, () => true))
+  }
+  return result
+}
+
+function draftedPlayer(season: string, round: number, origRosterId: number): DraftedPick | null {
+  return resolveDraft(season).get(`${round}-${origRosterId}`) ?? null
 }
 
 // ---------- Trades ----------
@@ -180,6 +230,7 @@ interface PickAsset {
   season: string
   round: number
   orig: number
+  projSlot: number | null
   slot: number | null
   playerId: string | null
   draftedBy: number | null
@@ -203,17 +254,18 @@ for (const season of seasonList) {
     for (const p of tx.draft_picks ?? []) {
       const key = `${p.season}-${p.round}-${p.roster_id}`
       if (!pickAssets.has(key)) {
-        const slot = pickSlot(p.season, p.roster_id)
-        const drafted = draftedPlayer(p.season, p.round, slot)
+        const projSlot = pickSlot(p.season, p.roster_id)
+        const drafted = draftedPlayer(p.season, p.round, p.roster_id)
         const playerId = drafted?.player_id ?? null
         const draft = seasons.find((s) => s.season === p.season)?.draft
         pickAssets.set(key, {
           season: p.season,
           round: p.round,
           orig: p.roster_id,
-          slot,
-          playerId,
+          projSlot,
+          slot: drafted?.draft_slot ?? null, // actual slot, known after the draft
           draftedBy: drafted?.roster_id ?? null,
+          playerId,
           draftDate: playerId ? draft?.date ?? null : null,
         })
         if (playerId) referencedPlayers.add(playerId)
@@ -306,16 +358,21 @@ dates.forEach((date, i) => {
 })
 
 // Value of a pick on a given snapshot, before it has been used.
-function pickValue(table: Map<string, number>, date: string, a: { season: string; round: number; slot: number | null }) {
+// Because of the draft lottery, a pick is valued by its projected tier (Early 1-4, Mid 5-8, Late 9-12),
+// never its exact slot, and only once the previous season is over (Jan 10); before that it's a Mid pick.
+function pickValue(table: Map<string, number>, date: string, a: { season: string; round: number; projSlot: number | null }) {
   const rd = ordinal(a.round)
-  const tier = a.slot == null ? 'Mid' : a.slot <= 4 ? 'Early' : a.slot <= 8 ? 'Mid' : 'Late'
-  // Draft order is set once the previous season ends; before that, treat every pick as "Mid".
-  const orderKnown = a.slot != null && date >= `${a.season}-01-10`
-  const slotName = a.slot != null ? `${a.season} Pick ${a.round}.${String(a.slot).padStart(2, '0')}` : ''
-  const tries = orderKnown
-    ? [slotName, `${a.season} ${tier} ${rd}`, `${a.season} ${rd}`]
-    : [`${a.season} Mid ${rd}`, `${a.season} ${rd}`, `${a.season} Pick ${a.round}.06`]
-  for (const name of tries) if (table.has(name)) return table.get(name)!
+  const orderKnown = a.projSlot != null && date >= `${a.season}-01-10`
+  const tier = !orderKnown ? 'Mid' : a.projSlot! <= 4 ? 'Early' : a.projSlot! <= 8 ? 'Mid' : 'Late'
+  const tierName = `${a.season} ${tier} ${rd}`
+  if (table.has(tierName)) return table.get(tierName)!
+  // For the upcoming draft DynastyProcess lists exact slots ("2026 Pick 1.04"): average the tier's slots.
+  const first = tier === 'Early' ? 1 : tier === 'Mid' ? 5 : 9
+  const slots = [0, 1, 2, 3]
+    .map((k) => table.get(`${a.season} Pick ${a.round}.${String(first + k).padStart(2, '0')}`))
+    .filter((v): v is number => v != null)
+  if (slots.length) return Math.round(slots.reduce((x, y) => x + y, 0) / slots.length)
+  if (table.has(`${a.season} ${rd}`)) return table.get(`${a.season} ${rd}`)!
   // Picks further out than DynastyProcess lists: use the furthest year it has for that round.
   const years = [...table.keys()].filter((k) => new RegExp(`^\\d{4} ${rd}$`).test(k)).sort()
   return years.length ? table.get(years.at(-1)!)! : 0

@@ -2,7 +2,7 @@ import { Link, useParams } from 'react-router'
 import ManagerLink from '../components/ManagerLink'
 import ValueChart from '../components/ValueChart'
 import { formatDate, headshot, managerName, pickLabel, pickOriginalOwner, useData, type Data, type Trade, type TradeSide } from '../data'
-import { peakSince, playerPoints, rewind, snapshotIndex, today, valueHistory, type Verdict } from '../rewind'
+import { peakSince, pickSeries, playerPoints, rewind, snapshotIndex, today, valueHistory, type Verdict } from '../rewind'
 
 function VerdictText({ data, trade, v }: { data: Data; trade: Trade; v: Verdict }) {
   if (v.winner == null) return <span className="muted">{v.label}</span>
@@ -45,12 +45,12 @@ function AssetRows({ data, trade, side }: { data: Data; trade: Trade; side: Trad
       icon: null,
       pos: 'PICK',
       name: pickLabel(pick) + (became ? ` → ${became.name}` : ''),
-      note: [orig !== side.userId ? `${managerName(data, orig)}'s pick` : '', pick.playerId && !counted ? 'traded away before the draft' : '']
+      note: [orig !== side.userId ? `${managerName(data, orig)}'s pick` : '', pick.playerId && !counted ? 'traded away before the draft, so its value is frozen at draft day' : '']
         .filter(Boolean)
         .join(' · '),
-      v0: pick.values[i0] ?? 0,
-      vN: pick.values[iN] ?? 0,
-      peak: peakSince(data, pick.values, trade.date),
+      v0: pickSeries(data, key, side.rosterId)[i0] ?? 0,
+      vN: pickSeries(data, key, side.rosterId)[iN] ?? 0,
+      peak: peakSince(data, pickSeries(data, key, side.rosterId), trade.date),
       pts: counted ? playerPoints(data, side, pick.playerId!, now) : null,
       left: counted ? side.tenure[pick.playerId!][1] : null,
     })

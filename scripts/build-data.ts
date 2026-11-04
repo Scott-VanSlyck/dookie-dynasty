@@ -125,19 +125,28 @@ function pickSlot(season: string, origRosterId: number): number | null {
   return owner && draft.draft_order?.[owner] ? draft.draft_order[owner] : null
 }
 
-function draftedPlayer(season: string, round: number, slot: number | null): string | null {
+// The draft pick made with this slot: { player_id, roster_id (team that made the pick) }.
+function draftedPlayer(season: string, round: number, slot: number | null): { player_id: string; roster_id: number } | null {
   const r = raw[season]
   const draft = r?.drafts?.[0]
   if (!draft || slot == null || draft.status !== 'complete') return null
   const picks: any[] = r.draftPicks[draft.draft_id] ?? []
-  const pick = picks.find((p) => p.round === round && p.draft_slot === slot)
-  return pick?.player_id ?? null
+  return picks.find((p) => p.round === round && p.draft_slot === slot) ?? null
 }
 
 // ---------- Trades ----------
 
 const trades: any[] = []
-const pickAssets = new Map<string, { season: string; round: number; orig: number; slot: number | null; playerId: string | null; draftDate: string | null }>()
+interface PickAsset {
+  season: string
+  round: number
+  orig: number
+  slot: number | null
+  playerId: string | null
+  draftedBy: number | null
+  draftDate: string | null
+}
+const pickAssets = new Map<string, PickAsset>()
 const referencedPlayers = new Set<string>()
 
 for (const season of seasonList) {
@@ -156,9 +165,18 @@ for (const season of seasonList) {
       const key = `${p.season}-${p.round}-${p.roster_id}`
       if (!pickAssets.has(key)) {
         const slot = pickSlot(p.season, p.roster_id)
-        const playerId = draftedPlayer(p.season, p.round, slot)
+        const drafted = draftedPlayer(p.season, p.round, slot)
+        const playerId = drafted?.player_id ?? null
         const draft = seasons.find((s) => s.season === p.season)?.draft
-        pickAssets.set(key, { season: p.season, round: p.round, orig: p.roster_id, slot, playerId, draftDate: playerId ? draft?.date ?? null : null })
+        pickAssets.set(key, {
+          season: p.season,
+          round: p.round,
+          orig: p.roster_id,
+          slot,
+          playerId,
+          draftedBy: drafted?.roster_id ?? null,
+          draftDate: playerId ? draft?.date ?? null : null,
+        })
         if (playerId) referencedPlayers.add(playerId)
       }
       side(p.owner_id)?.picks.push(key)
@@ -174,11 +192,48 @@ for (const season of seasonList) {
       season,
       week: tx.leg,
       date: isoDate(tx.status_updated ?? tx.created),
+      ms: tx.status_updated ?? tx.created,
       sides,
     })
   }
 }
-trades.sort((a, b) => a.date.localeCompare(b.date))
+trades.sort((a, b) => a.ms - b.ms)
+
+// ---------- Tenure: how long each team kept what it received ----------
+// Every time a player leaves a roster (traded, dropped, released), Sleeper records a "drop".
+// A side's production only counts while the player stays on that roster.
+
+const departures = new Map<string, number[]>() // "rosterId|playerId" -> times the player left
+for (const season of seasonList) {
+  for (const tx of raw[season].transactions) {
+    if (tx.status !== 'complete') continue
+    for (const [pid, rid] of Object.entries<number>(tx.drops ?? {})) {
+      const key = `${rid}|${pid}`
+      if (!departures.has(key)) departures.set(key, [])
+      departures.get(key)!.push(tx.status_updated ?? tx.created)
+    }
+  }
+}
+const leftAt = (rid: number, pid: string, after: number) => {
+  const times = (departures.get(`${rid}|${pid}`) ?? []).filter((t) => t > after).sort((a, b) => a - b)
+  return times.length ? isoDate(times[0]) : null
+}
+
+for (const t of trades) {
+  for (const s of t.sides) {
+    const tenure: Record<string, [string, string | null]> = {}
+    for (const pid of s.players) tenure[pid] = [t.date, leftAt(s.rosterId, pid, t.ms)]
+    // A received pick produces points only if this team still had it on draft day.
+    for (const key of s.picks) {
+      const a = pickAssets.get(key)!
+      if (a.playerId && a.draftDate && a.draftedBy === s.rosterId) {
+        tenure[a.playerId] = [a.draftDate, leftAt(s.rosterId, a.playerId, Date.parse(a.draftDate))]
+      }
+    }
+    s.tenure = tenure
+  }
+  delete t.ms
+}
 
 // ---------- Value history (DynastyProcess, superflex) ----------
 

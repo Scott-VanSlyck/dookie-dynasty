@@ -1,5 +1,6 @@
 import { HashRouter, NavLink, Route, Routes } from 'react-router'
 import Home from './pages/Home'
+import TradeDetail from './pages/TradeDetail'
 import Trades from './pages/Trades'
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/trades" element={<Trades />} />
+          <Route path="/trades/:id" element={<TradeDetail />} />
           <Route path="*" element={<p>Page not found.</p>} />
         </Routes>
       </main>

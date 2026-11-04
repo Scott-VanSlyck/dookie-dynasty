@@ -11,8 +11,20 @@
   line-height: 1.5;
 }
 
+:root {
+  /* Chart series colors (validated categorical palette, fixed order) */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
     --bg: #14181f;
     --card: #1d232c;
     --border: #2a323d;
@@ -260,6 +272,206 @@ button.link {
 
 .became {
   color: var(--muted);
+}
+
+/* ---------- verdicts ---------- */
+
+.verdict-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+  color: var(--text);
+  text-decoration: none;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.verdict-strip:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.rewind-link {
+  margin-left: auto;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: baseline;
+}
+
+.hero-verdicts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.hero-verdicts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 1.15rem;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table.checkpoints,
+table.assets {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.92rem;
+}
+
+.checkpoints th,
+.checkpoints td,
+.assets th,
+.assets td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.checkpoints th,
+.assets th {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+tr.pending td {
+  opacity: 0.55;
+}
+
+.side-detail h3 {
+  margin: 20px 0 8px;
+}
+
+.asset {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.asset img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg);
+  flex: none;
+}
+
+.how {
+  margin-top: 28px;
+  max-width: 680px;
+}
+
+/* ---------- chart ---------- */
+
+.chart {
+  margin: 0;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+
+.legend i,
+.tooltip i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+
+.chart-box {
+  position: relative;
+}
+
+.chart svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  touch-action: none;
+}
+
+.chart .grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.chart .axis {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.chart .marker {
+  stroke: var(--muted);
+  stroke-dasharray: 3 4;
+  opacity: 0.6;
+}
+
+.chart .crosshair {
+  stroke: var(--muted);
+  stroke-width: 1;
+}
+
+.chart .end-label {
+  fill: var(--text);
+  font-size: 12px;
+}
+
+.tooltip {
+  position: absolute;
+  top: 8px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.15);
+}
+
+.tooltip b {
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 560px) {

@@ -33,6 +33,9 @@ export interface TradeSide {
   players: string[]
   picks: string[] // keys into values.picks: "season-round-originalRosterId"
   faab: number
+  // Players whose points count for this side -> [date acquired, date they left or null].
+  // Includes players drafted with received picks (from draft day), if this team made the pick.
+  tenure: Record<string, [string, string | null]>
 }
 
 export interface Trade {
@@ -55,6 +58,7 @@ export interface PickAsset {
   orig: number
   slot: number | null
   playerId: string | null
+  draftedBy: number | null
   draftDate: string | null
   values: number[]
 }

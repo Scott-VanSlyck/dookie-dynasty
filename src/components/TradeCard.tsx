@@ -1,6 +1,24 @@
+import { Link } from 'react-router'
 import { formatDate, headshot, managerName, pickLabel, pickOriginalOwner, type Data, type Trade } from '../data'
+import { todayVerdicts, type Verdict } from '../rewind'
+
+function Pill({ data, trade, v, what }: { data: Data; trade: Trade; v: Verdict; what: string }) {
+  return (
+    <span className="pill">
+      <span className="muted">{what}:</span>{' '}
+      {v.winner == null ? (
+        v.label
+      ) : (
+        <>
+          <strong>{managerName(data, trade.sides[v.winner].userId)}</strong> <span className="muted">({v.label.toLowerCase()})</span>
+        </>
+      )}
+    </span>
+  )
+}
 
 export default function TradeCard({ data, trade }: { data: Data; trade: Trade }) {
+  const v = todayVerdicts(data, trade)
   return (
     <article className="trade">
       <header>
@@ -9,6 +27,11 @@ export default function TradeCard({ data, trade }: { data: Data; trade: Trade })
           {trade.season} · {trade.week > 0 ? `Week ${trade.week}` : 'Offseason'}
         </span>
       </header>
+      <Link to={`/trades/${trade.id}`} className="verdict-strip">
+        <Pill data={data} trade={trade} v={v.value} what="Value today" />
+        <Pill data={data} trade={trade} v={v.points} what="Points so far" />
+        <span className="rewind-link">Rewind →</span>
+      </Link>
       <div className={`sides sides-${trade.sides.length}`}>
         {trade.sides.map((side) => (
           <section key={side.rosterId} className="side">

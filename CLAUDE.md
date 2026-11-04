@@ -36,10 +36,14 @@ Day of trade · End of that season (after the championship week) · 1 year later
 Each checkpoint shows:
 - **Value:** sum of each side's superflex value on that date.
 - **Production:** starter points scored for the receiving roster between the trade and that date.
-FAAB is shown but not scored. Raw sums for now; consider a consolidation ("best player") adjustment later.
+FAAB is shown but not scored (trades where a side got only FAAB are labeled "FAAB deal", no winner). Raw sums for now; consider a consolidation ("best player") adjustment later.
+- Logic lives in `src/rewind.ts`. Verdict tiers by margin (gap ÷ bigger side): <10% Even, <25% Slight edge, <50% Clear win, <75% Big win, else Fleeced.
+- Production uses `side.tenure` (built in `build-data.ts` from drop transactions): points count only while the player stays on that roster. A received pick produces points only if that team made the pick.
+- "End of season" = Tuesday after the final scored week; week dates are estimated from Labor Day.
+- Trade list sort "Biggest value gap today" ranks by absolute value gap, not margin.
 
 ## Build order
-1. Setup ✅  2. Data pipeline ✅  3. Trade list page ✅  4. Trade rewind scoring
+1. Setup ✅  2. Data pipeline ✅  3. Trade list page ✅  4. Trade rewind scoring ✅
 5. Manager pages  6. League history  7. Hosting + weekly auto-refresh
 
 ## Site structure

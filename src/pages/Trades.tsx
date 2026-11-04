@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useSearchParams } from 'react-router'
 import TradeCard from '../components/TradeCard'
 import { managerName, useData, type Data, type Trade } from '../data'
+import { todayVerdicts } from '../rewind'
 
 // Every name that appears in a trade (players, drafted players, managers), for searching.
 function searchText(data: Data, t: Trade) {
@@ -23,7 +24,7 @@ export default function Trades() {
   const season = params.get('season') ?? ''
   const manager = params.get('manager') ?? ''
   const query = params.get('q') ?? ''
-  const oldest = params.get('sort') === 'oldest'
+  const sort = params.get('sort') ?? ''
 
   const set = (key: string, value: string) => {
     const next = new URLSearchParams(params)
@@ -47,8 +48,13 @@ export default function Trades() {
         (!manager || t.sides.some((s) => s.userId === manager)) &&
         (!q || searchText(data, t).includes(q)),
     )
-    return oldest ? list : [...list].reverse()
-  }, [data, season, manager, query, oldest])
+    if (sort === 'oldest') return list
+    if (sort === 'lopsided') {
+      const gap = new Map(list.map((t) => [t.id, todayVerdicts(data, t).value.gap]))
+      return [...list].sort((a, b) => gap.get(b.id)! - gap.get(a.id)!)
+    }
+    return [...list].reverse()
+  }, [data, season, manager, query, sort])
 
   if (error) return <p className="error">{error}</p>
   if (!data) return <p className="muted">Loading trades…</p>
@@ -75,9 +81,10 @@ export default function Trades() {
             </option>
           ))}
         </select>
-        <select value={oldest ? 'oldest' : ''} onChange={(e) => set('sort', e.target.value)}>
+        <select value={sort} onChange={(e) => set('sort', e.target.value)}>
           <option value="">Newest first</option>
           <option value="oldest">Oldest first</option>
+          <option value="lopsided">Biggest value gap today</option>
         </select>
       </div>
       <p className="muted small">
